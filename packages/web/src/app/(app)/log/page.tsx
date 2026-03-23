@@ -40,36 +40,36 @@ export default function LogPage() {
     if (!user) return;
     const uid = user.id;
 
-    const promises: Promise<unknown>[] = [];
+    const promises: PromiseLike<unknown>[] = [];
 
     if (weightKg) {
       promises.push(supabase.from('weight_logs').upsert(
         { user_id: uid, logged_date: today, weight_kg: parseFloat(weightKg) },
         { onConflict: 'user_id,logged_date' }
-      ));
+      ).select());
     }
     if (mood) {
       promises.push(supabase.from('mood_logs').upsert(
         { user_id: uid, logged_date: today, mood: String(mood), note: moodNote || null },
         { onConflict: 'user_id,logged_date' }
-      ));
+      ).select());
     }
     if (exercise.trim()) {
       promises.push(supabase.from('exercise_logs').insert(
         { user_id: uid, logged_date: today, raw_input: exercise.trim(), exercises: [] }
-      ));
+      ).select());
     }
     if (water > 0) {
       promises.push(supabase.from('water_logs').upsert(
         { user_id: uid, logged_date: today, glasses: water },
         { onConflict: 'user_id,logged_date' }
-      ));
+      ).select());
     }
     if (steps) {
       promises.push(supabase.from('step_logs').upsert(
         { user_id: uid, logged_date: today, steps: parseInt(steps) },
         { onConflict: 'user_id,logged_date' }
-      ));
+      ).select());
     }
     if (sleptAt && wokeAt) {
       const sleptDate = new Date(`${today}T${sleptAt}:00`);
@@ -78,7 +78,7 @@ export default function LogPage() {
       promises.push(supabase.from('sleep_logs').upsert(
         { user_id: uid, logged_date: today, slept_at: sleptDate.toISOString(), woke_at: wokeDate.toISOString(), quality: sleepQuality, duration_min: Math.abs(durationMin) },
         { onConflict: 'user_id,logged_date' }
-      ));
+      ).select());
     }
 
     await Promise.allSettled(promises);
