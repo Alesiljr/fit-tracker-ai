@@ -6,50 +6,48 @@ import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { MOOD_EMOJIS } from '@fittracker/shared';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-interface DayData {
-  weight: string | null;
-  mood: string | null;
-  moodNote: string | null;
-  waterGlasses: number;
-  steps: number;
-  exerciseMinutes: number;
-  sleepDurationMin: number | null;
-  sleepQuality: number | null;
-}
-
 export default function DashboardPage() {
-  const [data, setData] = useState<DayData | null>(null);
   const [userName, setUserName] = useState('');
+  const [mood, setMood] = useState<string | null>(null);
+  const [weight, setWeight] = useState<string | null>(null);
+  const [water, setWater] = useState(0);
+  const [steps, setSteps] = useState(0);
+  const [exerciseMin, setExerciseMin] = useState(0);
+  const [sleepMin, setSleepMin] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+  const today = new Date().toISOString().split('T')[0];
 
-  useEffect(() => { loadDashboard(); }, []);
+  useEffect(() => { loadData(); }, []);
 
-  async function loadDashboard() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const headers = { Authorization: `Bearer ${session.access_token}` };
+  async function loadData() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const uid = user.id;
 
-    const [dashRes, profileRes] = await Promise.all([
-      fetch(`${API_URL}/api/dashboard/today`, { headers }),
-      fetch(`${API_URL}/api/profile`, { headers }),
+    const [profileRes, weightRes, moodRes, waterRes, stepsRes, exerciseRes, sleepRes] = await Promise.all([
+      supabase.from('user_profiles').select('display_name').eq('id', uid).single(),
+      supabase.from('weight_logs').select('weight_kg').eq('user_id', uid).eq('logged_date', today).single(),
+      supabase.from('mood_logs').select('mood').eq('user_id', uid).eq('logged_date', today).single(),
+      supabase.from('water_logs').select('glasses').eq('user_id', uid).eq('logged_date', today).single(),
+      supabase.from('step_logs').select('steps').eq('user_id', uid).eq('logged_date', today).single(),
+      supabase.from('exercise_logs').select('total_duration_min').eq('user_id', uid).eq('logged_date', today),
+      supabase.from('sleep_logs').select('duration_min').eq('user_id', uid).eq('logged_date', today).single(),
     ]);
 
-    if (dashRes.ok) setData(await dashRes.json());
-    if (profileRes.ok) {
-      const profile = await profileRes.json();
-      setUserName(profile.displayName || 'Usuário');
-    }
+    setUserName(profileRes.data?.display_name || user.email?.split('@')[0] || 'Usuário');
+    setWeight(weightRes.data?.weight_kg || null);
+    setMood(moodRes.data?.mood || null);
+    setWater(waterRes.data?.glasses || 0);
+    setSteps(stepsRes.data?.steps || 0);
+    setExerciseMin(exerciseRes.data?.reduce((s: number, e: { total_duration_min: number | null }) => s + (e.total_duration_min || 0), 0) || 0);
+    setSleepMin(sleepRes.data?.duration_min || null);
     setLoading(false);
   }
 
   if (loading) return <div className="p-4 text-neutral-500">Carregando...</div>;
 
-  const moodEmoji = data?.mood
-    ? MOOD_EMOJIS[Number(data.mood) as keyof typeof MOOD_EMOJIS]
-    : null;
+  const moodEmoji = mood ? MOOD_EMOJIS[Number(mood) as keyof typeof MOOD_EMOJIS] : null;
 
   return (
     <div className="p-4 max-w-md mx-auto">
@@ -63,50 +61,36 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <Card>
-          <CardContent className="py-3 text-center">
-            <p className="text-2xl">⚖️</p>
-            <p className="text-lg font-bold">{data?.weight || '—'}</p>
-            <p className="text-xs text-neutral-400">kg</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 text-center">
-            <p className="text-2xl">💧</p>
-            <p className="text-lg font-bold">{data?.waterGlasses || 0}</p>
-            <p className="text-xs text-neutral-400">copos</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 text-center">
-            <p className="text-2xl">🏋️</p>
-            <p className="text-lg font-bold">{data?.exerciseMinutes || 0}</p>
-            <p className="text-xs text-neutral-400">min</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 text-center">
-            <p className="text-2xl">👟</p>
-            <p className="text-lg font-bold">{data?.steps?.toLocaleString() || 0}</p>
-            <p className="text-xs text-neutral-400">passos</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 text-center">
-            <p className="text-2xl">🛏️</p>
-            <p className="text-lg font-bold">
-              {data?.sleepDurationMin ? `${Math.floor(data.sleepDurationMin / 60)}h` : '—'}
-            </p>
-            <p className="text-xs text-neutral-400">sono</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 text-center">
-            <p className="text-2xl">{moodEmoji || '😊'}</p>
-            <p className="text-lg font-bold">{data?.mood || '—'}</p>
-            <p className="text-xs text-neutral-400">humor</p>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="py-3 text-center">
+          <p className="text-2xl">⚖️</p>
+          <p className="text-lg font-bold">{weight || '—'}</p>
+          <p className="text-xs text-neutral-400">kg</p>
+        </CardContent></Card>
+        <Card><CardContent className="py-3 text-center">
+          <p className="text-2xl">💧</p>
+          <p className="text-lg font-bold">{water}</p>
+          <p className="text-xs text-neutral-400">copos</p>
+        </CardContent></Card>
+        <Card><CardContent className="py-3 text-center">
+          <p className="text-2xl">🏋️</p>
+          <p className="text-lg font-bold">{exerciseMin}</p>
+          <p className="text-xs text-neutral-400">min</p>
+        </CardContent></Card>
+        <Card><CardContent className="py-3 text-center">
+          <p className="text-2xl">👟</p>
+          <p className="text-lg font-bold">{steps.toLocaleString()}</p>
+          <p className="text-xs text-neutral-400">passos</p>
+        </CardContent></Card>
+        <Card><CardContent className="py-3 text-center">
+          <p className="text-2xl">🛏️</p>
+          <p className="text-lg font-bold">{sleepMin ? `${Math.floor(sleepMin / 60)}h` : '—'}</p>
+          <p className="text-xs text-neutral-400">sono</p>
+        </CardContent></Card>
+        <Card><CardContent className="py-3 text-center">
+          <p className="text-2xl">{moodEmoji || '😊'}</p>
+          <p className="text-lg font-bold">{mood || '—'}</p>
+          <p className="text-xs text-neutral-400">humor</p>
+        </CardContent></Card>
       </div>
 
       <Link href="/log">
