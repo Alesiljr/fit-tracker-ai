@@ -60,8 +60,19 @@ export default function ChatPage() {
       setMessages(prev => [...prev, userMsgData]);
     }
 
-    // Generate AI response (placeholder — will use Claude API when configured)
-    const aiResponse = generatePlaceholderResponse(userMsg);
+    // Call Gemini AI via API route
+    let aiResponse: string;
+    try {
+      const aiRes = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg, userId: user.id }),
+      });
+      const aiData = await aiRes.json();
+      aiResponse = aiData.response || 'Desculpe, não consegui responder.';
+    } catch {
+      aiResponse = 'Erro ao conectar com a AI. Tente novamente.';
+    }
 
     const { data: aiMsgData } = await supabase.from('chat_messages')
       .insert({ session_id: sid, user_id: user.id, role: 'assistant', content: aiResponse })
@@ -78,26 +89,6 @@ export default function ChatPage() {
       .eq('id', sid);
 
     setSending(false);
-  }
-
-  function generatePlaceholderResponse(msg: string): string {
-    const lower = msg.toLowerCase();
-    if (lower.includes('peso') || lower.includes('emagrecer')) {
-      return 'Entendi que você quer falar sobre peso! Quando a integração com Claude AI estiver ativa, vou analisar seus registros e dar dicas personalizadas baseadas nos seus dados reais. Por enquanto, continue registrando seu peso diariamente no Log! 💪';
-    }
-    if (lower.includes('exerc') || lower.includes('treino')) {
-      return 'Ótimo que você está se exercitando! Registre seus exercícios no Log para que eu possa acompanhar seu progresso. Em breve, com a AI ativa, vou dar sugestões adaptadas ao seu estilo — respeitando sempre suas preferências! 🏋️';
-    }
-    if (lower.includes('sono') || lower.includes('dormir')) {
-      return 'O sono é fundamental para a saúde! Continue registrando seus horários e qualidade de sono. Quando a AI estiver integrada, vou correlacionar seu sono com humor e exercício para insights personalizados. 🛏️';
-    }
-    if (lower.includes('água') || lower.includes('agua')) {
-      return 'Hidratação é essencial! Não esquece de registrar seus copos de água no Log. A meta padrão é 8 copos por dia, mas podemos ajustar conforme seus dados. 💧';
-    }
-    if (lower.includes('humor') || lower.includes('triste') || lower.includes('feliz')) {
-      return 'Obrigado por compartilhar como você se sente! Registrar o humor diariamente me ajuda a entender seus padrões. Quando a AI estiver ativa, vou adaptar meu tom e sugestões ao seu estado emocional. 😊';
-    }
-    return `Recebi sua mensagem! Estou em modo de teste — quando a API do Claude for configurada, vou poder conversar sobre seus dados de saúde de forma personalizada. Por enquanto, use o Log para registrar seu dia e o Dashboard para acompanhar o progresso! 🎯`;
   }
 
   return (
