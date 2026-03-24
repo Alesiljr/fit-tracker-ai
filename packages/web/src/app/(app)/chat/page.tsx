@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ interface Session { id: string; title: string; updated_at: string; message_count
 const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 
 export default function ChatPage() {
+  const { user: authUser } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -28,7 +30,7 @@ export default function ChatPage() {
   const supabase = createClient();
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
-  useEffect(() => { loadSessions(); }, []);
+  useEffect(() => { if (authUser) loadSessions(); }, [authUser]);
 
   async function uid() { return (await supabase.auth.getUser()).data.user?.id || ''; }
 

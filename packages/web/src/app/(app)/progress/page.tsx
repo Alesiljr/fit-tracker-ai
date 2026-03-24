@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MOOD_EMOJIS, OBJECTIVE_LABELS } from '@fittracker/shared';
@@ -16,6 +17,7 @@ interface BestDay {
 }
 
 export default function ProgressPage() {
+  const { user: authUser, loading: authLoading } = useAuth();
   const [period, setPeriod] = useState<Period>('7');
   const [data, setData] = useState<Record<string, unknown[]>>({});
   const [bestDay, setBestDay] = useState<BestDay | null>(null);
@@ -23,7 +25,7 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  useEffect(() => { loadAll(); }, [period]);
+  useEffect(() => { if (authUser) loadAll(); }, [period, authUser]);
 
   async function loadAll() {
     setLoading(true);

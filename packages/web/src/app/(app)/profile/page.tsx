@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { OBJECTIVE_LABELS, GENDER_LABELS, BLOOD_TYPES, GENDERS, type UserObjecti
 import type { Medication } from '@fittracker/shared';
 
 export default function ProfilePage() {
+  const { user: authUser, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Record<string, string | number | boolean | null>>({});
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,7 @@ export default function ProfilePage() {
 
   const supabase = createClient();
 
-  useEffect(() => { loadProfile(); loadHealthInfo(); }, []);
+  useEffect(() => { if (authUser) { loadProfile(); loadHealthInfo(); } }, [authUser]);
 
   async function loadProfile() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -106,7 +108,7 @@ export default function ProfilePage() {
     if (value.trim() && !list.includes(value.trim())) { setList([...list, value.trim()]); setValue(''); }
   }
 
-  if (loading) return <div className="p-4 text-neutral-500">Carregando perfil...</div>;
+  if (authLoading || loading) return <div className="p-4 text-neutral-500">Carregando perfil...</div>;
 
   return (
     <div className="p-4 max-w-md mx-auto space-y-4">

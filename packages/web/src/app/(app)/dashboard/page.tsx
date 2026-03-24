@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent } from '@/components/ui/card';
 import { MOOD_EMOJIS } from '@fittracker/shared';
 
@@ -17,6 +18,7 @@ interface CaloriesData {
 }
 
 export default function DashboardPage() {
+  const { user: authUser, loading: authLoading } = useAuth();
   const [userName, setUserName] = useState('');
   const [mood, setMood] = useState<string | null>(null);
   const [weight, setWeight] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export default function DashboardPage() {
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0];
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { if (authUser) loadData(); }, [authUser]);
 
   async function loadData() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -82,7 +84,7 @@ export default function DashboardPage() {
     setLoading(false);
   }
 
-  if (loading) return <div className="p-4 text-neutral-500">Carregando...</div>;
+  if (authLoading || loading) return <div className="p-4 text-neutral-500">Carregando...</div>;
 
   const moodEmoji = mood ? MOOD_EMOJIS[Number(mood) as keyof typeof MOOD_EMOJIS] : null;
 
