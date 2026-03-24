@@ -31,13 +31,20 @@ export default function ProfilePage() {
   useEffect(() => { if (authUser) { loadProfile(); loadHealthInfo(); } }, [authUser]);
 
   async function loadProfile() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data, error: err } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
-    if (err) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data);
+      } else {
+        setError('Erro ao carregar perfil.');
+      }
+    } catch {
       setError('Erro ao carregar perfil. Verifique sua conexão.');
-    } else if (data) {
-      setProfile(data);
     }
     setLoading(false);
   }
@@ -58,35 +65,43 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
     setError('');
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSaving(false); return; }
 
-    const form = new FormData(e.target as HTMLFormElement);
-    const updates = {
-      display_name: form.get('displayName') as string,
-      gender: (form.get('gender') as string) || null,
-      blood_type: (form.get('bloodType') as string) || null,
-      height_cm: Number(form.get('heightCm')) || null,
-      initial_weight: Number(form.get('initialWeight')) || null,
-      objective: form.get('objective') as string,
-      updated_at: new Date().toISOString(),
-    };
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSaving(false); return; }
 
-    const { data, error: err } = await supabase
-      .from('user_profiles')
-      .update(updates)
-      .eq('id', user.id)
-      .select()
-      .single();
+      const form = new FormData(e.target as HTMLFormElement);
+      const updates = {
+        displayName: form.get('displayName') as string,
+        gender: (form.get('gender') as string) || undefined,
+        bloodType: (form.get('bloodType') as string) || undefined,
+        heightCm: Number(form.get('heightCm')) || undefined,
+        initialWeight: Number(form.get('initialWeight')) || undefined,
+        objective: form.get('objective') as string,
+      };
 
-    if (err || !data) {
-      setError('Erro ao salvar perfil. Verifique sua conexão e tente novamente.');
-      setSaving(false);
-      return;
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || 'Erro ao salvar perfil.');
+        setSaving(false);
+        return;
+      }
+
+      const data = await res.json();
+      setProfile(data);
+      setEditing(false);
+    } catch {
+      setError('Erro ao salvar perfil. Verifique sua conexão.');
     }
-
-    setProfile(data);
-    setEditing(false);
     setSaving(false);
   }
 

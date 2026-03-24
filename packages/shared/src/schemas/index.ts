@@ -15,12 +15,17 @@ export const moodLevelSchema = z.union([
   z.literal(5),
 ]);
 
+export const genderSchema = z.enum(['male', 'female', 'non_binary', 'prefer_not_to_say']);
+export const bloodTypeSchema = z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
+
 export const updateProfileSchema = z.object({
   displayName: z.string().min(2).max(50).optional(),
   dateOfBirth: z.string().date().optional(),
   heightCm: z.number().min(50).max(300).optional(),
   initialWeight: z.number().min(10).max(500).optional(),
   objective: userObjectiveSchema.optional(),
+  gender: genderSchema.optional(),
+  bloodType: bloodTypeSchema.optional(),
   timezone: z.string().optional(),
 });
 
