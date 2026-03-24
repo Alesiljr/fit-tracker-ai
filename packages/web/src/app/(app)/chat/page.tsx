@@ -5,8 +5,10 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { TOPIC_LABELS, MESSAGE_TOPICS } from '@fittracker/shared';
+import type { MessageTopic } from '@fittracker/shared';
 
-interface Msg { id: string; role: string; content: string; created_at: string; }
+interface Msg { id: string; role: string; content: string; created_at: string; topic?: string; }
 interface Session { id: string; title: string; updated_at: string; message_count: number; }
 
 const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
@@ -18,6 +20,7 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [topicFilter, setTopicFilter] = useState<MessageTopic | 'all'>('all');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -136,6 +139,22 @@ export default function ChatPage() {
           <span className="text-sm text-neutral-500 truncate">{sessions.find(s=>s.id===sessionId)?.title || 'FitTracker AI'}</span>
         </div>
 
+        {/* Topic Filters */}
+        {!isHome && (
+          <div className="px-3 pt-2 pb-1 border-b flex gap-1.5 overflow-x-auto">
+            <button onClick={() => setTopicFilter('all')}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition ${topicFilter === 'all' ? 'bg-primary-500 text-white' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}>
+              Tudo
+            </button>
+            {MESSAGE_TOPICS.map(t => (
+              <button key={t} onClick={() => setTopicFilter(t)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition ${topicFilter === t ? 'bg-primary-500 text-white' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}>
+                {TOPIC_LABELS[t]}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Home / Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
           {isHome ? (
@@ -148,7 +167,7 @@ export default function ChatPage() {
             </div>
           ) : (
             <div className="space-y-3 max-w-2xl mx-auto">
-              {messages.map(m => (
+              {messages.filter(m => topicFilter === 'all' || m.topic === topicFilter).map(m => (
                 <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <Card className={`max-w-[85%] p-3 ${m.role === 'user' ? 'bg-primary-500 text-white' : 'bg-white border'}`}>
                     <p className="text-sm whitespace-pre-wrap">{m.content}</p>
