@@ -6,6 +6,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (
     pathname === '/login' ||
+    pathname === '/register' ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/_next/') ||
     pathname.includes('.')
