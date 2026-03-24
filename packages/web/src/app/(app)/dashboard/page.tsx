@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [mealsLogged, setMealsLogged] = useState<string[]>([]);
   const [calories, setCalories] = useState<CaloriesData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0];
 
@@ -47,6 +48,13 @@ export default function DashboardPage() {
       supabase.from('sleep_logs').select('duration_min').eq('user_id', uid).eq('logged_date', today).maybeSingle(),
       supabase.from('food_logs').select('meal_type, total_calories').eq('user_id', uid).eq('logged_date', today),
     ]);
+
+    // Check for RLS/permission errors on critical queries
+    const hasErrors = [profileRes, weightRes, moodRes, waterRes, stepsRes, exerciseRes, sleepRes, foodRes]
+      .some(res => res.error);
+    if (hasErrors) {
+      setLoadError('Alguns dados não puderam ser carregados. Tente recarregar a página.');
+    }
 
     setUserName(profileRes.data?.display_name || user.email?.split('@')[0] || 'Usuário');
     setWeight(weightRes.data?.weight_kg || null);
@@ -98,6 +106,11 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 max-w-md mx-auto">
+      {loadError && (
+        <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 border border-red-200 text-sm">
+          {loadError}
+        </div>
+      )}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-neutral-800">
           Olá, {userName}! {moodEmoji || '👋'}

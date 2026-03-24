@@ -19,6 +19,7 @@ const MOODS = [
 export default function LogPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [mood, setMood] = useState<number | null>(null);
   const [moodNote, setMoodNote] = useState('');
@@ -110,10 +111,16 @@ export default function LogPage() {
       }
     }
 
-    await Promise.allSettled(promises);
+    const results = await Promise.allSettled(promises);
+    const failures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && (r.value as { error?: unknown })?.error));
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    if (failures.length > 0) {
+      setSaveError(`Erro ao salvar ${failures.length} registro(s). Tente novamente.`);
+      setTimeout(() => setSaveError(''), 5000);
+    } else {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    }
   }
 
   return (
@@ -249,6 +256,12 @@ export default function LogPage() {
           ))}
         </CardContent>
       </Card>
+
+      {saveError && (
+        <div className="p-3 rounded-md bg-red-50 text-red-700 border border-red-200 text-sm text-center">
+          {saveError}
+        </div>
+      )}
 
       {saved && (
         <div className="p-3 rounded-md bg-green-50 text-green-700 border border-green-200 text-sm text-center">

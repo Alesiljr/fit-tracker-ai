@@ -219,13 +219,19 @@ Campos: peso, humor, exercicio, agua, passos, sono, cafe_da_manha, almoco, janta
           }
         }
 
-        await Promise.allSettled(saves);
+        const saveResults = await Promise.allSettled(saves);
+        const saveFailures = saveResults.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && (r.value as { error?: unknown })?.error));
+
+        let confirmMsg = parsed.confirmation_message;
+        if (saveFailures.length > 0) {
+          confirmMsg += `\n\n⚠️ ${saveFailures.length} registro(s) não puderam ser salvos. Tente novamente.`;
+        }
 
         setMessages(prev => [
           ...prev,
           {
             role: 'assistant',
-            content: parsed.confirmation_message,
+            content: confirmMsg,
             missingFields: parsed.missing_fields,
           },
         ]);

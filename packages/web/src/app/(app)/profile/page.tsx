@@ -31,8 +31,12 @@ export default function ProfilePage() {
   async function loadProfile() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
-    if (data) setProfile(data);
+    const { data, error: err } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
+    if (err) {
+      setError('Erro ao carregar perfil. Verifique sua conexão.');
+    } else if (data) {
+      setProfile(data);
+    }
     setLoading(false);
   }
 
@@ -53,7 +57,7 @@ export default function ProfilePage() {
     setSaving(true);
     setError('');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setSaving(false); return; }
 
     const form = new FormData(e.target as HTMLFormElement);
     const updates = {
@@ -66,18 +70,35 @@ export default function ProfilePage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: err } = await supabase.from('user_profiles').update(updates).eq('id', user.id);
-    if (err) { setError('Erro ao salvar perfil'); } else { setProfile({ ...profile, ...updates }); setEditing(false); }
+    const { data, error: err } = await supabase
+      .from('user_profiles')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (err || !data) {
+      setError('Erro ao salvar perfil. Verifique sua conexão e tente novamente.');
+      setSaving(false);
+      return;
+    }
+
+    setProfile(data);
+    setEditing(false);
     setSaving(false);
   }
 
   async function handleSaveHealth() {
     setHealthSaving(true);
+    setError('');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setHealthSaving(false); return; }
 
     const healthData = { user_id: user.id, intolerances, allergies, medications, supplements, updated_at: new Date().toISOString() };
-    await supabase.from('user_health_info').upsert(healthData, { onConflict: 'user_id' }).select();
+    const { error: err } = await supabase.from('user_health_info').upsert(healthData, { onConflict: 'user_id' }).select();
+    if (err) {
+      setError('Erro ao salvar dados de saúde. Tente novamente.');
+    }
     setHealthSaving(false);
   }
 
