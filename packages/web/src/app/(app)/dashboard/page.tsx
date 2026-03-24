@@ -27,12 +27,12 @@ export default function DashboardPage() {
 
     const [profileRes, weightRes, moodRes, waterRes, stepsRes, exerciseRes, sleepRes] = await Promise.all([
       supabase.from('user_profiles').select('display_name').eq('id', uid).single(),
-      supabase.from('weight_logs').select('weight_kg').eq('user_id', uid).eq('logged_date', today).single(),
-      supabase.from('mood_logs').select('mood').eq('user_id', uid).eq('logged_date', today).single(),
-      supabase.from('water_logs').select('glasses').eq('user_id', uid).eq('logged_date', today).single(),
-      supabase.from('step_logs').select('steps').eq('user_id', uid).eq('logged_date', today).single(),
+      supabase.from('weight_logs').select('weight_kg').eq('user_id', uid).eq('logged_date', today).maybeSingle(),
+      supabase.from('mood_logs').select('mood').eq('user_id', uid).eq('logged_date', today).maybeSingle(),
+      supabase.from('water_logs').select('glasses').eq('user_id', uid).eq('logged_date', today).maybeSingle(),
+      supabase.from('step_logs').select('steps').eq('user_id', uid).eq('logged_date', today).maybeSingle(),
       supabase.from('exercise_logs').select('total_duration_min').eq('user_id', uid).eq('logged_date', today),
-      supabase.from('sleep_logs').select('duration_min').eq('user_id', uid).eq('logged_date', today).single(),
+      supabase.from('sleep_logs').select('duration_min').eq('user_id', uid).eq('logged_date', today).maybeSingle(),
     ]);
 
     setUserName(profileRes.data?.display_name || user.email?.split('@')[0] || 'Usuário');

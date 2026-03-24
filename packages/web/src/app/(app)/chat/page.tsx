@@ -58,7 +58,7 @@ export default function ChatPage() {
     const [profileRes, boundariesRes, moodRes, weightRes] = await Promise.all([
       supabase.from('user_profiles').select('display_name, objective').eq('id', user.id).single(),
       supabase.from('user_boundaries').select('item, reason').eq('user_id', user.id).eq('is_active', true),
-      supabase.from('mood_logs').select('mood, note').eq('user_id', user.id).eq('logged_date', new Date().toISOString().split('T')[0]).single(),
+      supabase.from('mood_logs').select('mood, note').eq('user_id', user.id).eq('logged_date', new Date().toISOString().split('T')[0]).maybeSingle(),
       supabase.from('weight_logs').select('weight_kg, logged_date').eq('user_id', user.id).order('logged_date', { ascending: false }).limit(7),
     ]);
 
