@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MEAL_LABELS, MEAL_DEFAULT_TIMES, MEAL_ICONS, sessionLabelFromTime } from '@fittracker/shared';
+import type { MealType } from '@fittracker/shared';
 
 const MOODS = [
   { value: 1, emoji: '😢', label: 'Muito mal' },
@@ -20,7 +22,13 @@ export default function LogPage() {
   const [weightKg, setWeightKg] = useState('');
   const [mood, setMood] = useState<number | null>(null);
   const [moodNote, setMoodNote] = useState('');
-  const [exercise, setExercise] = useState('');
+  const [exercises, setExercises] = useState([{ id: '1', time: '', input: '' }]);
+  const [mealTimes, setMealTimes] = useState<Record<string, string>>(
+    Object.fromEntries((['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper'] as const).map(m => [m, MEAL_DEFAULT_TIMES[m] || '']))
+  );
+  const [morningSnack, setMorningSnack] = useState('');
+  const [afternoonSnack, setAfternoonSnack] = useState('');
+  const [supperMeal, setSupperMeal] = useState('');
   const [water, setWater] = useState(0);
   const [steps, setSteps] = useState('');
   const [sleptAt, setSleptAt] = useState('');
@@ -54,10 +62,12 @@ export default function LogPage() {
         { onConflict: 'user_id,logged_date' }
       ).select());
     }
-    if (exercise.trim()) {
-      promises.push(supabase.from('exercise_logs').insert(
-        { user_id: uid, logged_date: today, raw_input: exercise.trim(), exercises: [] }
-      ).select());
+    for (const ex of exercises) {
+      if (ex.input.trim()) {
+        promises.push(supabase.from('exercise_logs').insert(
+          { user_id: uid, logged_date: today, raw_input: ex.input.trim(), exercises: [], started_at: ex.time || null, session_label: ex.time ? sessionLabelFromTime(ex.time) : null }
+        ).select());
+      }
     }
     if (water > 0) {
       promises.push(supabase.from('water_logs').upsert(
@@ -81,17 +91,20 @@ export default function LogPage() {
       ).select());
     }
 
-    // Save meals to food_logs
+    // Save meals to food_logs with times
     const meals = [
       { type: 'breakfast', text: breakfast },
+      { type: 'morning_snack', text: morningSnack },
       { type: 'lunch', text: lunch },
+      { type: 'afternoon_snack', text: afternoonSnack },
       { type: 'dinner', text: dinner },
+      { type: 'supper', text: supperMeal },
       { type: 'snack', text: snack },
     ];
     for (const m of meals) {
       if (m.text.trim()) {
         promises.push(supabase.from('food_logs').upsert(
-          { user_id: uid, logged_date: today, meal_type: m.type, description: m.text.trim(), ai_estimated: false },
+          { user_id: uid, logged_date: today, meal_type: m.type, description: m.text.trim(), logged_at: mealTimes[m.type] || null, ai_estimated: false },
           { onConflict: 'user_id,logged_date,meal_type' }
         ).select());
       }
@@ -142,12 +155,29 @@ export default function LogPage() {
         </CardContent>
       </Card>
 
-      {/* Exercício */}
+      {/* Exercício - Múltiplas sessões */}
       <Card>
-        <CardHeader><CardTitle className="text-sm uppercase text-neutral-500">🏋️ Exercício</CardTitle></CardHeader>
-        <CardContent>
-          <textarea placeholder="Ex: 30 min de agachamento e flexão em casa..." value={exercise} onChange={e => setExercise(e.target.value)}
-            rows={3} className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500" />
+        <CardHeader><CardTitle className="text-sm uppercase text-neutral-500">🏋️ Exercícios do Dia</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {exercises.map((ex, idx) => (
+            <div key={ex.id} className="bg-neutral-50 rounded-md p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Input type="time" value={ex.time} onChange={e => { const arr = [...exercises]; arr[idx] = { ...arr[idx], time: e.target.value }; setExercises(arr); }}
+                    className="w-28 text-xs" />
+                  <span className="text-xs text-neutral-400">{ex.time ? sessionLabelFromTime(ex.time) : ''}</span>
+                </div>
+                {exercises.length > 1 && (
+                  <button onClick={() => setExercises(exercises.filter((_, i) => i !== idx))} className="text-neutral-300 hover:text-red-400 text-sm">✕</button>
+                )}
+              </div>
+              <textarea placeholder="Ex: 30 min de agachamento e flexão..." value={ex.input}
+                onChange={e => { const arr = [...exercises]; arr[idx] = { ...arr[idx], input: e.target.value }; setExercises(arr); }}
+                rows={2} className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+          ))}
+          <button onClick={() => setExercises([...exercises, { id: Date.now().toString(), time: '', input: '' }])}
+            className="text-sm text-primary-500 hover:underline">+ Adicionar exercício</button>
         </CardContent>
       </Card>
 
@@ -193,20 +223,28 @@ export default function LogPage() {
         </CardContent>
       </Card>
 
-      {/* Alimentação */}
+      {/* Alimentação com horários */}
       <Card>
         <CardHeader><CardTitle className="text-sm uppercase text-neutral-500">🍽️ Alimentação</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          {[
-            { label: '☀️ Café da manhã', value: breakfast, set: setBreakfast },
-            { label: '🌤️ Almoço', value: lunch, set: setLunch },
-            { label: '🌙 Jantar', value: dinner, set: setDinner },
-            { label: '🍎 Lanche', value: snack, set: setSnack },
-          ].map(({ label, value, set }) => (
-            <div key={label}>
-              <label className="text-xs text-neutral-500">{label}</label>
-              <textarea placeholder={`O que comeu?`} value={value} onChange={e => set(e.target.value)}
-                rows={2} className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          {([
+            { key: 'breakfast', value: breakfast, set: setBreakfast },
+            { key: 'morning_snack', value: morningSnack, set: setMorningSnack },
+            { key: 'lunch', value: lunch, set: setLunch },
+            { key: 'afternoon_snack', value: afternoonSnack, set: setAfternoonSnack },
+            { key: 'dinner', value: dinner, set: setDinner },
+            { key: 'supper', value: supperMeal, set: setSupperMeal },
+            { key: 'snack', value: snack, set: setSnack },
+          ] as const).map(({ key, value, set }) => (
+            <div key={key}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm">{MEAL_ICONS[key]}</span>
+                <label className="text-xs text-neutral-500 flex-1">{MEAL_LABELS[key as keyof typeof MEAL_LABELS]}</label>
+                <Input type="time" value={mealTimes[key] || ''} onChange={e => setMealTimes({ ...mealTimes, [key]: e.target.value })}
+                  className="w-24 text-xs" />
+              </div>
+              <textarea placeholder="O que comeu?" value={value} onChange={e => set(e.target.value)}
+                rows={1} className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
           ))}
         </CardContent>

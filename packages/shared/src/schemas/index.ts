@@ -40,3 +40,4 @@ export type OnboardingInput = z.infer<typeof onboardingSchema>;
 export * from './auth';
 export * from './chat';
 export * from './health';
+export * from './health-info';
