@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -30,6 +30,14 @@ const FIELD_LABELS: Record<string, string> = {
 const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 
 export default function LogChatPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-neutral-500">Carregando...</div>}>
+      <LogChatContent />
+    </Suspense>
+  );
+}
+
+function LogChatContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
