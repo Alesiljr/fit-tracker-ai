@@ -101,9 +101,11 @@ REGRAS:
     let aiResponse: string;
     try {
       const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      const chat = model.startChat({ systemInstruction: systemPrompt });
-      const result = await chat.sendMessage(userMsg);
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash',
+        systemInstruction: { parts: [{ text: systemPrompt }], role: 'user' },
+      });
+      const result = await model.generateContent(userMsg);
       aiResponse = result.response.text();
     } catch (err) {
       console.error('Gemini error:', err);
