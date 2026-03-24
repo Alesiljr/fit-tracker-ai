@@ -8,6 +8,7 @@ import {
   sleepLogs,
   waterLogs,
   stepLogs,
+  foodLogs,
 } from '../../db/schema.js';
 import {
   weightLogSchema,
@@ -213,18 +214,25 @@ export async function healthRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: result.error.errors[0].message });
     }
 
-    // Food logs don't have a DB table with meal column in the current schema.
-    // We store as exercise-style raw entries or extend later.
-    // For now, return a success acknowledgment with the parsed data.
-    // TODO: Add foodLogs table to schema if needed.
     const { loggedDate, meal, rawInput } = result.data;
-    return {
-      success: true,
-      loggedDate,
-      meal,
-      rawInput,
-      message: 'Food log recorded (pending foodLogs table migration)',
-    };
+    const row = await db
+      .insert(foodLogs)
+      .values({
+        userId: request.userId,
+        loggedDate,
+        mealType: meal,
+        description: rawInput,
+      })
+      .onConflictDoUpdate({
+        target: [foodLogs.userId, foodLogs.loggedDate, foodLogs.mealType],
+        set: {
+          description: rawInput,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+
+    return row[0];
   });
 
   // ============================================================
@@ -240,7 +248,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
 
     const userId = request.userId;
 
-    const [weight, exercise, mood, sleep, water, steps] = await Promise.all([
+    const [weight, exercise, mood, sleep, water, steps, food] = await Promise.all([
       db.query.weightLogs.findFirst({
         where: and(eq(weightLogs.userId, userId), eq(weightLogs.loggedDate, date)),
       }),
@@ -259,6 +267,8 @@ export async function healthRoutes(fastify: FastifyInstance) {
       db.query.stepLogs.findFirst({
         where: and(eq(stepLogs.userId, userId), eq(stepLogs.loggedDate, date)),
       }),
+      db.select().from(foodLogs)
+        .where(and(eq(foodLogs.userId, userId), eq(foodLogs.loggedDate, date))),
     ]);
 
     return {
@@ -269,6 +279,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
       sleep: sleep ?? null,
       water: water ?? null,
       steps: steps ?? null,
+      food,
     };
   });
 

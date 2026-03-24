@@ -73,6 +73,8 @@ export const mealTypeEnum = pgEnum('meal_type', [
 
 export const reportTypeEnum = pgEnum('report_type', ['weekly', 'monthly']);
 
+export const genderEnum = pgEnum('gender', ['male', 'female']);
+
 // ============================================================
 // USER PROFILES
 // ============================================================
@@ -83,6 +85,7 @@ export const userProfiles = pgTable('user_profiles', {
   heightCm: numeric('height_cm', { precision: 5, scale: 1 }),
   initialWeight: numeric('initial_weight', { precision: 5, scale: 1 }),
   objective: userObjectiveEnum('objective').notNull().default('improve_health'),
+  gender: genderEnum('gender'),
   avatarUrl: text('avatar_url'),
   timezone: text('timezone').notNull().default('America/Sao_Paulo'),
   onboardingCompleted: boolean('onboarding_completed').notNull().default(false),
@@ -287,6 +290,34 @@ export const stepLogs = pgTable(
   },
   (table) => ({
     uniqueStepsPerDay: uniqueIndex('uq_steps_per_day').on(table.userId, table.loggedDate),
+  }),
+);
+
+// ============================================================
+// FOOD LOGS
+// ============================================================
+export const foodLogs = pgTable(
+  'food_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => userProfiles.id, { onDelete: 'cascade' }),
+    loggedDate: date('logged_date').notNull(),
+    mealType: mealTypeEnum('meal_type').notNull(),
+    description: text('description').notNull(),
+    items: jsonb('items').default([]),
+    totalCalories: integer('total_calories'),
+    aiEstimated: boolean('ai_estimated').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    uniqueFoodPerMeal: uniqueIndex('uq_food_per_meal').on(
+      table.userId,
+      table.loggedDate,
+      table.mealType,
+    ),
   }),
 );
 

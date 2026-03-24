@@ -81,6 +81,22 @@ export default function LogPage() {
       ).select());
     }
 
+    // Save meals to food_logs
+    const meals = [
+      { type: 'breakfast', text: breakfast },
+      { type: 'lunch', text: lunch },
+      { type: 'dinner', text: dinner },
+      { type: 'snack', text: snack },
+    ];
+    for (const m of meals) {
+      if (m.text.trim()) {
+        promises.push(supabase.from('food_logs').upsert(
+          { user_id: uid, logged_date: today, meal_type: m.type, description: m.text.trim(), ai_estimated: false },
+          { onConflict: 'user_id,logged_date,meal_type' }
+        ).select());
+      }
+    }
+
     await Promise.allSettled(promises);
     setSaving(false);
     setSaved(true);
@@ -89,8 +105,15 @@ export default function LogPage() {
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
-      <h1 className="text-2xl font-bold text-neutral-800">Registro Diário</h1>
-      <p className="text-sm text-neutral-500">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-800">Registro Diário</h1>
+          <p className="text-sm text-neutral-500">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        </div>
+        <a href="/log/chat" className="text-sm text-primary-500 hover:underline">
+          💬 Via chat
+        </a>
+      </div>
 
       {/* Peso */}
       <Card>

@@ -9,6 +9,7 @@ import { dashboardRoutes } from './modules/reports/dashboard.routes.js';
 import { reportsRoutes } from './modules/reports/reports.routes.js';
 import { goalsRoutes } from './modules/goals/goals.routes.js';
 import { privacyRoutes } from './modules/privacy/privacy.routes.js';
+import { logChatRoutes } from './modules/log/log-chat.routes.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -43,6 +44,7 @@ async function buildServer() {
   await fastify.register(reportsRoutes);
   await fastify.register(goalsRoutes);
   await fastify.register(privacyRoutes);
+  await fastify.register(logChatRoutes);
 
   fastify.get('/api/health-check', async () => {
     return { status: 'ok', timestamp: new Date().toISOString() };
