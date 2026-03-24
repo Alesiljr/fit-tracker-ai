@@ -10,6 +10,8 @@ import {
   pgEnum,
   jsonb,
   uniqueIndex,
+  time,
+  index,
 } from 'drizzle-orm/pg-core';
 
 // ============================================================
@@ -66,14 +68,28 @@ export const goalStatusEnum = pgEnum('goal_status', [
 
 export const mealTypeEnum = pgEnum('meal_type', [
   'breakfast',
+  'morning_snack',
   'lunch',
+  'afternoon_snack',
   'dinner',
+  'supper',
+  'pre_workout',
+  'post_workout',
   'snack',
+  'other',
 ]);
 
 export const reportTypeEnum = pgEnum('report_type', ['weekly', 'monthly']);
 
-export const genderEnum = pgEnum('gender', ['male', 'female']);
+export const genderEnum = pgEnum('gender', ['male', 'female', 'non_binary', 'prefer_not_to_say']);
+
+export const bloodTypeEnum = pgEnum('blood_type_enum', [
+  'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-',
+]);
+
+export const messageTopicEnum = pgEnum('message_topic', [
+  'nutrition', 'exercise', 'sleep', 'wellness', 'goals', 'general',
+]);
 
 // ============================================================
 // USER PROFILES
@@ -86,6 +102,7 @@ export const userProfiles = pgTable('user_profiles', {
   initialWeight: numeric('initial_weight', { precision: 5, scale: 1 }),
   objective: userObjectiveEnum('objective').notNull().default('improve_health'),
   gender: genderEnum('gender'),
+  bloodType: bloodTypeEnum('blood_type'),
   avatarUrl: text('avatar_url'),
   timezone: text('timezone').notNull().default('America/Sao_Paulo'),
   onboardingCompleted: boolean('onboarding_completed').notNull().default(false),
@@ -108,6 +125,23 @@ export const onboardingData = pgTable('onboarding_data', {
   aiDislikes: text('ai_dislikes').array().default([]),
   dailyRoutine: jsonb('daily_routine').default({}),
   completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ============================================================
+// USER HEALTH INFO (FR-01.5)
+// ============================================================
+export const userHealthInfo = pgTable('user_health_info', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => userProfiles.id, { onDelete: 'cascade' })
+    .unique(),
+  intolerances: text('intolerances').array().default([]),
+  allergies: text('allergies').array().default([]),
+  medications: jsonb('medications').default([]),
+  supplements: jsonb('supplements').default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -221,6 +255,8 @@ export const exerciseLogs = pgTable('exercise_logs', {
     .notNull()
     .references(() => userProfiles.id, { onDelete: 'cascade' }),
   loggedDate: date('logged_date').notNull(),
+  startedAt: time('started_at'),
+  sessionLabel: text('session_label'),
   rawInput: text('raw_input').notNull(),
   exercises: jsonb('exercises').notNull().default([]),
   totalDurationMin: integer('total_duration_min'),
@@ -305,6 +341,7 @@ export const foodLogs = pgTable(
       .references(() => userProfiles.id, { onDelete: 'cascade' }),
     loggedDate: date('logged_date').notNull(),
     mealType: mealTypeEnum('meal_type').notNull(),
+    loggedAt: time('logged_at'),
     description: text('description').notNull(),
     items: jsonb('items').default([]),
     totalCalories: integer('total_calories'),
@@ -347,6 +384,7 @@ export const chatMessages = pgTable('chat_messages', {
     .references(() => userProfiles.id, { onDelete: 'cascade' }),
   role: text('role').notNull(),
   content: text('content').notNull(),
+  topic: messageTopicEnum('topic').default('general'),
   metadata: jsonb('metadata').default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

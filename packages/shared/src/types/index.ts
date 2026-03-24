@@ -18,7 +18,13 @@ export type GoalType = 'weight' | 'water' | 'exercise_duration' | 'steps' | 'sle
 
 export type GoalStatus = 'active' | 'achieved' | 'archived';
 
-export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type MealType = 'breakfast' | 'morning_snack' | 'lunch' | 'afternoon_snack' | 'dinner' | 'supper' | 'pre_workout' | 'post_workout' | 'other';
+
+export type Gender = 'male' | 'female' | 'non_binary' | 'prefer_not_to_say';
+
+export type BloodType = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+
+export type MessageTopic = 'nutrition' | 'exercise' | 'sleep' | 'wellness' | 'goals' | 'general';
 
 export type ReportType = 'weekly' | 'monthly';
 
@@ -26,6 +32,8 @@ export interface UserProfile {
   id: string;
   displayName: string;
   dateOfBirth: string | null;
+  gender: Gender | null;
+  bloodType: BloodType | null;
   heightCm: number | null;
   initialWeight: number | null;
   objective: UserObjective;
@@ -35,6 +43,31 @@ export interface UserProfile {
   featureUnlockLevel: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Medication {
+  name: string;
+  dosage?: string;
+  frequency?: string;
+}
+
+export interface UserHealthInfo {
+  id: string;
+  userId: string;
+  intolerances: string[];
+  allergies: string[];
+  medications: Medication[];
+  supplements: Medication[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BestDayResponse {
+  date: string | null;
+  score: number;
+  highlights: string[];
+  message: string;
+  period: 'week' | 'month' | 'all';
 }
 
 export interface HealthDaySummary {
