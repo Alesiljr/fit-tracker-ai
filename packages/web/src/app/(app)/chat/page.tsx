@@ -102,7 +102,7 @@ REGRAS:
     try {
       const genAI = new GoogleGenerativeAI(GEMINI_KEY);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-1.5-flash',
         systemInstruction: { parts: [{ text: systemPrompt }], role: 'user' },
       });
       const result = await model.generateContent(userMsg);
