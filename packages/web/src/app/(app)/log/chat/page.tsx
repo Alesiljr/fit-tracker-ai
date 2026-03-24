@@ -160,37 +160,37 @@ Campos: peso, humor, exercicio, agua, passos, sono, cafe_da_manha, almoco, janta
         const uid = user.id;
 
         // Save data directly to Supabase
-        const saves: Promise<unknown>[] = [];
+        const saves: PromiseLike<unknown>[] = [];
         if (data.weight_kg != null) {
           saves.push(supabase.from('weight_logs').upsert(
             { user_id: uid, logged_date: today, weight_kg: data.weight_kg },
             { onConflict: 'user_id,logged_date' },
-          ));
+          ).select());
         }
         if (data.mood != null) {
           saves.push(supabase.from('mood_logs').upsert(
             { user_id: uid, logged_date: today, mood: String(data.mood), note: data.mood_note },
             { onConflict: 'user_id,logged_date' },
-          ));
+          ).select());
         }
         if (data.water_glasses != null) {
           saves.push(supabase.from('water_logs').upsert(
             { user_id: uid, logged_date: today, glasses: data.water_glasses },
             { onConflict: 'user_id,logged_date' },
-          ));
+          ).select());
         }
         if (data.steps != null) {
           saves.push(supabase.from('step_logs').upsert(
             { user_id: uid, logged_date: today, steps: data.steps },
             { onConflict: 'user_id,logged_date' },
-          ));
+          ).select());
         }
         if (data.exercises?.length > 0) {
           for (const ex of data.exercises) {
             saves.push(supabase.from('exercise_logs').insert({
               user_id: uid, logged_date: today, raw_input: ex.description,
               exercises: [ex], total_duration_min: ex.duration_min,
-            }));
+            }).select());
           }
         }
         if (data.sleep) {
@@ -200,14 +200,14 @@ Campos: peso, humor, exercicio, agua, passos, sono, cafe_da_manha, almoco, janta
           saves.push(supabase.from('sleep_logs').upsert(
             { user_id: uid, logged_date: today, slept_at: sleptAt.toISOString(), woke_at: wokeAt.toISOString(), quality: data.sleep.quality || 3, duration_min: durMin },
             { onConflict: 'user_id,logged_date' },
-          ));
+          ).select());
         }
         if (data.meals?.length > 0) {
           for (const meal of data.meals) {
             saves.push(supabase.from('food_logs').upsert(
               { user_id: uid, logged_date: today, meal_type: meal.meal_type, description: meal.description, total_calories: meal.estimated_calories, ai_estimated: true },
               { onConflict: 'user_id,logged_date,meal_type' },
-            ));
+            ).select());
           }
         }
 
