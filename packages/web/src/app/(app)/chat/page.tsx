@@ -5,8 +5,6 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 interface Message {
   id: string;
   role: string;
@@ -97,16 +95,23 @@ REGRAS:
 - Nunca julgue escolhas do usuário
 - Celebre consistência`;
 
-    // Call Gemini directly
+    // Call Gemini via REST API (v1)
     let aiResponse: string;
     try {
-      const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        systemInstruction: { parts: [{ text: systemPrompt }], role: 'user' },
-      });
-      const result = await model.generateContent(userMsg);
-      aiResponse = result.response.text();
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+          }),
+        },
+      );
+      const data = await res.json();
+      aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text
+        || 'Não consegui gerar uma resposta. Tente novamente!';
     } catch (err) {
       console.error('Gemini error:', err);
       aiResponse = 'Desculpe, tive um problema para responder. Tente novamente! 🙏';
