@@ -28,6 +28,37 @@ export default function ChatPage() {
     }
   }, [messages]);
 
+  // Load last session messages on mount
+  useEffect(() => {
+    async function loadHistory() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get most recent session
+      const { data: sessions } = await supabase
+        .from('chat_sessions')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (sessions && sessions.length > 0) {
+        const sid = sessions[0].id;
+        setSessionId(sid);
+
+        // Load messages
+        const { data: msgs } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('session_id', sid)
+          .order('created_at', { ascending: true });
+
+        if (msgs) setMessages(msgs);
+      }
+    }
+    loadHistory();
+  }, []);
+
   async function handleSend() {
     if (!input.trim() || sending) return;
     setSending(true);
@@ -67,6 +98,14 @@ export default function ChatPage() {
     const todayMood = moodRes.data;
     const weights = weightRes.data || [];
 
+    const objectiveLabels: Record<string, string> = {
+      lose_weight: 'perder peso',
+      gain_muscle: 'ganhar massa muscular',
+      improve_health: 'melhorar a saúde geral',
+      maintain: 'manter a forma atual',
+    };
+    const objectiveText = objectiveLabels[profile?.objective || ''] || profile?.objective || 'melhorar saúde';
+
     const moodTones: Record<string, string> = {
       '1': 'Seja gentil e acolhedor. Não pressione.',
       '2': 'Seja informativo e equilibrado.',
@@ -77,7 +116,7 @@ export default function ChatPage() {
 
     const systemPrompt = `Você é um assistente de saúde pessoal chamado FitTracker AI. Amigável, empático e adaptativo.
 
-USUÁRIO: ${profile?.display_name || 'Usuário'} | Objetivo: ${profile?.objective || 'melhorar saúde'}
+USUÁRIO: ${profile?.display_name || 'Usuário'} | Objetivo: ${objectiveText}
 
 NUNCA SUGIRA:
 ${boundaries.length > 0 ? boundaries.map(b => `- "${b.item}"${b.reason ? ` (${b.reason})` : ''}`).join('\n') : '- Nenhuma restrição'}
