@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { LogoutButton } from '@/components/auth/logout-button';
 
+// Prevent Next.js/Vercel from caching authenticated pages
+export const dynamic = 'force-dynamic';
+
 export default function AppLayout({
   children,
 }: {

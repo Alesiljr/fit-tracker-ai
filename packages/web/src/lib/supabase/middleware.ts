@@ -30,8 +30,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
+  // getUser() refreshes the session token if expired
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
@@ -46,6 +48,20 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/privacy') ||
     pathname.startsWith('/onboarding');
 
+  // Session expired or invalid → clear cookies and redirect to login
+  if (error && isAppRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    const redirectResponse = NextResponse.redirect(url);
+    // Clear stale auth cookies
+    request.cookies.getAll().forEach((cookie) => {
+      if (cookie.name.startsWith('sb-')) {
+        redirectResponse.cookies.delete(cookie.name);
+      }
+    });
+    return redirectResponse;
+  }
+
   // Not authenticated → redirect to login (except auth routes and root)
   if (!user && isAppRoute) {
     const url = request.nextUrl.clone();
@@ -59,6 +75,9 @@ export async function updateSession(request: NextRequest) {
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
+
+  // Prevent browser/CDN caching of authenticated pages
+  supabaseResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   return supabaseResponse;
 }
