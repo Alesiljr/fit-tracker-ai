@@ -40,6 +40,7 @@ export async function PUT(request: NextRequest) {
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.displayName !== undefined) updates.display_name = body.displayName;
+  if (body.dateOfBirth !== undefined) updates.date_of_birth = body.dateOfBirth || null;
   if (body.gender !== undefined) updates.gender = body.gender || null;
   if (body.bloodType !== undefined) updates.blood_type = body.bloodType || null;
   if (body.heightCm !== undefined) updates.height_cm = body.heightCm || null;
