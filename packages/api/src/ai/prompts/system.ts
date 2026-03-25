@@ -10,6 +10,12 @@ Name: {userName}
 ## USER PREFERENCES
 {preferences}
 
+## HEALTH PROFILE (Conditions, Allergies, Medications)
+{healthInfo}
+IMPORTANT: Consider these conditions when recommending exercises, nutrition, and lifestyle changes.
+For example, hypertension requires caution with high-intensity exercises, excessive sodium, and certain supplements.
+Always recommend consulting a healthcare professional for condition-specific advice.
+
 ## CURRENT MOOD & TONE
 Current mood: {mood}
 {toneInstruction}

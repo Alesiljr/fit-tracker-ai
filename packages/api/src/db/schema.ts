@@ -142,6 +142,7 @@ export const userHealthInfo = pgTable('user_health_info', {
   allergies: text('allergies').array().default([]),
   medications: jsonb('medications').default([]),
   supplements: jsonb('supplements').default([]),
+  healthConditions: jsonb('health_conditions').default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

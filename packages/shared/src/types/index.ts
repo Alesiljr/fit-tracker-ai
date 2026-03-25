@@ -51,6 +51,13 @@ export interface Medication {
   frequency?: string;
 }
 
+export interface HealthCondition {
+  name: string;
+  severity?: 'mild' | 'moderate' | 'severe';
+  diagnosedYear?: number;
+  notes?: string;
+}
+
 export interface UserHealthInfo {
   id: string;
   userId: string;
@@ -58,6 +65,7 @@ export interface UserHealthInfo {
   allergies: string[];
   medications: Medication[];
   supplements: Medication[];
+  healthConditions: HealthCondition[];
   createdAt: string;
   updatedAt: string;
 }

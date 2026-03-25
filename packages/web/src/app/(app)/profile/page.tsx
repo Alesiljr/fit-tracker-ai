@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { OBJECTIVE_LABELS, GENDER_LABELS, BLOOD_TYPES, GENDERS, type UserObjective } from '@fittracker/shared';
-import type { Medication } from '@fittracker/shared';
+import type { Medication, HealthCondition } from '@fittracker/shared';
 
 export default function ProfilePage() {
   const { user: authUser, loading: authLoading } = useAuth();
@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [allergies, setAllergies] = useState<string[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [supplements, setSupplements] = useState<Medication[]>([]);
+  const [healthConditions, setHealthConditions] = useState<HealthCondition[]>([]);
   const [newIntolerance, setNewIntolerance] = useState('');
   const [newAllergy, setNewAllergy] = useState('');
   const [healthSaving, setHealthSaving] = useState(false);
@@ -58,6 +59,7 @@ export default function ProfilePage() {
       setAllergies(data.allergies || []);
       setMedications(data.medications || []);
       setSupplements(data.supplements || []);
+      setHealthConditions(data.health_conditions || []);
     }
   }
 
@@ -111,7 +113,7 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setHealthSaving(false); return; }
 
-    const healthData = { user_id: user.id, intolerances, allergies, medications, supplements, updated_at: new Date().toISOString() };
+    const healthData = { user_id: user.id, intolerances, allergies, medications, supplements, health_conditions: healthConditions, updated_at: new Date().toISOString() };
     const { error: err } = await supabase.from('user_health_info').upsert(healthData, { onConflict: 'user_id' }).select();
     if (err) {
       setError('Erro ao salvar dados de saúde. Tente novamente.');
@@ -231,6 +233,26 @@ export default function ProfilePage() {
                 placeholder="Ex: amendoim, camarão" className="text-sm" />
               <Button variant="outline" size="sm" onClick={() => addChip(allergies, setAllergies, newAllergy, setNewAllergy)}>+</Button>
             </div>
+          </div>
+
+          {/* Health Conditions */}
+          <div>
+            <label className="text-sm text-neutral-600 mb-2 block">Condições de Saúde</label>
+            <p className="text-xs text-neutral-400 mb-2">Ex: hipertensão, diabetes, asma, hipotireoidismo</p>
+            {healthConditions.map((cond, idx) => (
+              <div key={idx} className="flex gap-1 mb-2 items-center">
+                <Input placeholder="Condição" value={cond.name} className="text-xs" onChange={(e) => { const c = [...healthConditions]; c[idx] = { ...c[idx], name: e.target.value }; setHealthConditions(c); }} />
+                <select value={cond.severity || ''} className="border rounded-md p-2 text-xs w-24" onChange={(e) => { const c = [...healthConditions]; c[idx] = { ...c[idx], severity: (e.target.value || undefined) as HealthCondition['severity'] }; setHealthConditions(c); }}>
+                  <option value="">Grau</option>
+                  <option value="mild">Leve</option>
+                  <option value="moderate">Moderado</option>
+                  <option value="severe">Grave</option>
+                </select>
+                <Input placeholder="Ano" type="number" value={cond.diagnosedYear || ''} className="text-xs w-20" onChange={(e) => { const c = [...healthConditions]; c[idx] = { ...c[idx], diagnosedYear: e.target.value ? Number(e.target.value) : undefined }; setHealthConditions(c); }} />
+                <button onClick={() => setHealthConditions(healthConditions.filter((_, i) => i !== idx))} className="text-neutral-300 hover:text-red-400 text-sm">✕</button>
+              </div>
+            ))}
+            <button onClick={() => setHealthConditions([...healthConditions, { name: '' }])} className="text-xs text-primary-500 hover:underline">+ Adicionar condição de saúde</button>
           </div>
 
           {/* Medications */}

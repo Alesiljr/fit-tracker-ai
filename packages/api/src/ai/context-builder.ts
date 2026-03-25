@@ -2,6 +2,7 @@ import { eq, and, gte, desc } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import {
   userProfiles,
+  userHealthInfo,
   userBoundaries,
   userPreferences,
   userGoals,
@@ -28,6 +29,7 @@ export async function buildPrompt(userId: string, userMessage: string): Promise<
   // Load all data in parallel
   const [
     profileRows,
+    healthInfoRows,
     boundaries,
     preferences,
     goals,
@@ -39,6 +41,7 @@ export async function buildPrompt(userId: string, userMessage: string): Promise<
     recentSteps,
   ] = await Promise.all([
     db.select().from(userProfiles).where(eq(userProfiles.id, userId)).limit(1),
+    db.select().from(userHealthInfo).where(eq(userHealthInfo.userId, userId)).limit(1),
     db
       .select()
       .from(userBoundaries)
@@ -84,7 +87,45 @@ export async function buildPrompt(userId: string, userMessage: string): Promise<
   ]);
 
   const profile = profileRows[0];
+  const healthInfo = healthInfoRows[0];
   const userName = profile?.displayName ?? 'Usuário';
+
+  // Format health conditions section
+  interface HealthConditionRecord {
+    name: string;
+    severity?: string;
+    diagnosedYear?: number;
+    notes?: string;
+  }
+  const healthConditions = (healthInfo?.healthConditions as HealthConditionRecord[] | null) ?? [];
+  const allergies = (healthInfo?.allergies as string[] | null) ?? [];
+  const intolerances = (healthInfo?.intolerances as string[] | null) ?? [];
+  const medications = (healthInfo?.medications as Array<{ name: string; dosage?: string; frequency?: string }> | null) ?? [];
+
+  const healthLines: string[] = [];
+  if (healthConditions.length > 0) {
+    healthLines.push('Chronic Conditions:');
+    for (const c of healthConditions) {
+      const parts = [c.name];
+      if (c.severity) parts.push(`severity: ${c.severity}`);
+      if (c.diagnosedYear) parts.push(`since ${c.diagnosedYear}`);
+      if (c.notes) parts.push(`note: ${c.notes}`);
+      healthLines.push(`  - ${parts.join(' — ')}`);
+    }
+  }
+  if (allergies.length > 0) {
+    healthLines.push(`Allergies: ${allergies.join(', ')}`);
+  }
+  if (intolerances.length > 0) {
+    healthLines.push(`Intolerances: ${intolerances.join(', ')}`);
+  }
+  if (medications.length > 0) {
+    healthLines.push('Medications:');
+    for (const m of medications) {
+      healthLines.push(`  - ${m.name}${m.dosage ? ` (${m.dosage})` : ''}${m.frequency ? ` — ${m.frequency}` : ''}`);
+    }
+  }
+  const healthText = healthLines.length > 0 ? healthLines.join('\n') : 'No health info provided.';
 
   // Format boundaries section
   const boundariesText =
@@ -177,6 +218,7 @@ export async function buildPrompt(userId: string, userMessage: string): Promise<
   const systemPrompt = SYSTEM_PROMPT.replace('{userName}', userName)
     .replace('{boundaries}', boundariesText)
     .replace('{preferences}', preferencesText)
+    .replace('{healthInfo}', healthText)
     .replace('{mood}', moodText)
     .replace('{toneInstruction}', toneInstruction)
     .replace('{recentData}', recentDataText)
