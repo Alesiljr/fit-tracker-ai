@@ -25,23 +25,23 @@
   }
 
   .dark {
-    --background: 2 6 23;
-    --foreground: 241 245 249;
-    --card: 15 23 42;
-    --card-foreground: 241 245 249;
-    --muted: 30 41 59;
-    --muted-foreground: 148 163 184;
-    --border: 30 41 59;
-    --input: 30 41 59;
+    --background: 17 17 20;
+    --foreground: 237 237 242;
+    --card: 26 26 30;
+    --card-foreground: 237 237 242;
+    --muted: 35 35 40;
+    --muted-foreground: 140 140 155;
+    --border: 42 42 48;
+    --input: 42 42 48;
     --ring: 129 140 248;
     --primary: 129 140 248;
-    --primary-foreground: 2 6 23;
-    --secondary: 30 41 59;
-    --secondary-foreground: 203 213 225;
+    --primary-foreground: 17 17 20;
+    --secondary: 35 35 40;
+    --secondary-foreground: 200 200 210;
     --accent: 52 211 153;
-    --accent-foreground: 2 6 23;
+    --accent-foreground: 17 17 20;
     --destructive: 251 113 133;
-    --destructive-foreground: 2 6 23;
+    --destructive-foreground: 17 17 20;
   }
 
   body {
@@ -60,7 +60,7 @@
     -webkit-backdrop-filter: blur(20px);
   }
   .dark .glass {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(26, 26, 30, 0.85);
   }
   .text-gradient {
     background: linear-gradient(135deg, #4F46E5, #7C3AED, #8B5CF6);

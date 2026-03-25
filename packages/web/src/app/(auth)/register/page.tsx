@@ -61,7 +61,7 @@ export default function RegisterPage() {
     return (
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl text-primary-600">Conta criada! 🎉</CardTitle>
+          <CardTitle className="text-2xl text-primary-600">Conta criada com sucesso</CardTitle>
           <CardDescription>
             Bem-vindo ao FitTracker AI, {name}! Redirecionando...
           </CardDescription>

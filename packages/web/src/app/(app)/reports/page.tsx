@@ -32,13 +32,13 @@ export default function ReportsPage() {
     setLoading(false);
   }
 
-  if (loading) return <div className="p-4 text-neutral-500">Carregando relatórios...</div>;
+  if (loading) return <div className="p-4 text-muted-foreground">Carregando relatórios...</div>;
 
   const metrics = (weekly as Record<string, unknown>)?.metrics as Record<string, string | number | null | undefined> | undefined;
 
   return (
     <div className="p-4 max-w-md mx-auto space-y-4">
-      <h1 className="text-2xl font-bold text-neutral-800">Relatórios</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Relatórios</h1>
 
       <Card>
         <CardHeader>
@@ -48,36 +48,36 @@ export default function ReportsPage() {
           {metrics ? (
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-neutral-500">Dias com registro</span>
+                <span className="text-muted-foreground">Dias com registro</span>
                 <span className="font-medium">{String(metrics.daysWithLogs)}</span>
               </div>
               {metrics.avgMood ? (
                 <div className="flex justify-between">
-                  <span className="text-neutral-500">Humor médio</span>
+                  <span className="text-muted-foreground">Humor médio</span>
                   <span className="font-medium">{String(metrics.avgMood)}/5</span>
                 </div>
               ) : null}
               {metrics.avgWater ? (
                 <div className="flex justify-between">
-                  <span className="text-neutral-500">Água média</span>
+                  <span className="text-muted-foreground">Água média</span>
                   <span className="font-medium">{String(metrics.avgWater)} copos/dia</span>
                 </div>
               ) : null}
               {metrics.totalExerciseMinutes != null ? (
                 <div className="flex justify-between">
-                  <span className="text-neutral-500">Exercício total</span>
+                  <span className="text-muted-foreground">Exercício total</span>
                   <span className="font-medium">{String(metrics.totalExerciseMinutes)} min</span>
                 </div>
               ) : null}
               {metrics.weightStart && metrics.weightEnd ? (
                 <div className="flex justify-between">
-                  <span className="text-neutral-500">Peso</span>
+                  <span className="text-muted-foreground">Peso</span>
                   <span className="font-medium">{String(metrics.weightStart)} → {String(metrics.weightEnd)} kg</span>
                 </div>
               ) : null}
             </div>
           ) : (
-            <p className="text-sm text-neutral-400">Sem dados suficientes para o resumo semanal</p>
+            <p className="text-sm text-muted-foreground">Sem dados suficientes para o resumo semanal</p>
           )}
         </CardContent>
       </Card>
@@ -91,13 +91,13 @@ export default function ReportsPage() {
             <div className="space-y-2">
               {insights.map((insight, i) => (
                 <div key={i} className="flex gap-2 text-sm">
-                  <span>💡</span>
-                  <p className="text-neutral-700">{insight}</p>
+                  <span className="text-primary font-bold">—</span>
+                  <p className="text-foreground">{insight}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-muted-foreground">
               Preciso de mais dados para gerar insights. Continue registrando!
             </p>
           )}
