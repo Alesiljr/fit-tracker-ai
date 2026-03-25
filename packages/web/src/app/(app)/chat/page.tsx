@@ -64,6 +64,133 @@ export default function ChatPage() {
   }
   function clearImage() { setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }
 
+  async function buildSystemPrompt(userId: string): Promise<string> {
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+
+    const [profileRes, healthRes, boundariesRes, prefsRes, goalsRes, moodRes, weightsRes, exercisesRes, waterRes, sleepRes, stepsRes] = await Promise.all([
+      supabase.from('user_profiles').select('*').eq('id', userId).single(),
+      supabase.from('user_health_info').select('*').eq('user_id', userId).maybeSingle(),
+      supabase.from('user_boundaries').select('*').eq('user_id', userId).eq('is_active', true),
+      supabase.from('user_preferences').select('*').eq('user_id', userId).eq('is_active', true),
+      supabase.from('user_goals').select('*').eq('user_id', userId).eq('status', 'active'),
+      supabase.from('mood_logs').select('mood, note').eq('user_id', userId).eq('logged_date', today).maybeSingle(),
+      supabase.from('weight_logs').select('logged_date, weight_kg').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }),
+      supabase.from('exercise_logs').select('logged_date, raw_input, total_duration_min, estimated_calories').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }),
+      supabase.from('water_logs').select('logged_date, glasses').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }),
+      supabase.from('sleep_logs').select('logged_date, duration_min, quality').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }),
+      supabase.from('step_logs').select('logged_date, steps').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }),
+    ]);
+
+    const p = profileRes.data;
+    const h = healthRes.data;
+    const userName = p?.display_name || 'Usuario';
+    const objLabels: Record<string,string> = { lose_weight:'Perder peso', gain_muscle:'Ganhar massa muscular', improve_health:'Melhorar saude geral', maintain:'Manter forma' };
+
+    // Profile section
+    let profileSection = `Nome: ${userName}`;
+    if (p?.date_of_birth) {
+      const age = Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31557600000);
+      profileSection += `\nIdade: ${age} anos`;
+    }
+    if (p?.gender) profileSection += `\nGenero: ${p.gender}`;
+    if (p?.height_cm) profileSection += `\nAltura: ${p.height_cm} cm`;
+    if (p?.initial_weight) profileSection += `\nPeso inicial: ${p.initial_weight} kg`;
+    if (p?.blood_type) profileSection += `\nTipo sanguineo: ${p.blood_type}`;
+    profileSection += `\nObjetivo: ${objLabels[p?.objective || ''] || 'Melhorar saude geral'}`;
+
+    // Health section
+    const healthLines: string[] = [];
+    const conditions = (h?.health_conditions as Array<{name:string;severity?:string;diagnosedYear?:number}> || []);
+    if (conditions.length > 0) {
+      healthLines.push('Condicoes cronicas:');
+      conditions.forEach(c => {
+        const parts = [c.name];
+        if (c.severity) parts.push(`grau: ${c.severity}`);
+        if (c.diagnosedYear) parts.push(`desde ${c.diagnosedYear}`);
+        healthLines.push(`  - ${parts.join(' — ')}`);
+      });
+    }
+    if (h?.allergies?.length) healthLines.push(`Alergias: ${h.allergies.join(', ')}`);
+    if (h?.intolerances?.length) healthLines.push(`Intolerancias: ${h.intolerances.join(', ')}`);
+    const meds = (h?.medications as Array<{name:string;dosage?:string;frequency?:string}> || []);
+    if (meds.length > 0) {
+      healthLines.push('Medicamentos:');
+      meds.forEach(m => healthLines.push(`  - ${m.name}${m.dosage ? ` (${m.dosage})` : ''}${m.frequency ? ` — ${m.frequency}` : ''}`));
+    }
+    const supps = (h?.supplements as Array<{name:string;dosage?:string;frequency?:string}> || []);
+    if (supps.length > 0) {
+      healthLines.push('Suplementos:');
+      supps.forEach(s => healthLines.push(`  - ${s.name}${s.dosage ? ` (${s.dosage})` : ''}${s.frequency ? ` — ${s.frequency}` : ''}`));
+    }
+
+    // Boundaries
+    const boundaries = (boundariesRes.data || []).map((b: any) => `- [${b.boundary_type}] ${b.category}: ${b.item}${b.reason ? ` (motivo: ${b.reason})` : ''}`).join('\n') || 'Nenhum limite configurado.';
+
+    // Preferences
+    const preferences = (prefsRes.data || []).map((p: any) => `- ${p.category}: ${p.item}${p.description ? ` — ${p.description}` : ''}`).join('\n') || 'Nenhuma preferencia registrada.';
+
+    // Mood
+    const mood = moodRes.data ? `Nivel ${moodRes.data.mood}/5${moodRes.data.note ? ` — "${moodRes.data.note}"` : ''}` : 'Nao registrado hoje';
+
+    // Recent data
+    const dataLines: string[] = [];
+    if (weightsRes.data?.length) { dataLines.push('Peso:'); weightsRes.data.forEach((w: any) => dataLines.push(`  ${w.logged_date}: ${w.weight_kg} kg`)); }
+    if (exercisesRes.data?.length) { dataLines.push('Exercicio:'); exercisesRes.data.forEach((e: any) => dataLines.push(`  ${e.logged_date}: ${e.raw_input} (${e.total_duration_min ?? '?'} min)`)); }
+    if (waterRes.data?.length) { dataLines.push('Agua:'); waterRes.data.forEach((w: any) => dataLines.push(`  ${w.logged_date}: ${w.glasses} copos`)); }
+    if (sleepRes.data?.length) { dataLines.push('Sono:'); sleepRes.data.forEach((s: any) => dataLines.push(`  ${s.logged_date}: ${s.duration_min ?? '?'} min, qualidade ${s.quality}/5`)); }
+    if (stepsRes.data?.length) { dataLines.push('Passos:'); stepsRes.data.forEach((s: any) => dataLines.push(`  ${s.logged_date}: ${s.steps} passos`)); }
+
+    // Goals
+    const goals = (goalsRes.data || []).map((g: any) => `- ${g.title}: meta ${g.target_value} ${g.unit} (atual: ${g.current_value ?? 'nao definido'}) [${g.direction}]`).join('\n') || 'Nenhuma meta ativa.';
+
+    return `Voce e o assistente de saude e fitness do FitTracker AI.
+Voce ajuda usuarios a acompanhar sua jornada de saude com orientacao personalizada.
+
+REGRA CRITICA DE LINGUAGEM:
+- SEMPRE chame o usuario pelo nome: ${userName}. NUNCA use "voce" como forma de tratamento direto. Use o nome da pessoa.
+- Exemplo correto: "${userName}, sua taxa metabolica basal e..."
+- Exemplo errado: "Voce tem uma taxa metabolica basal de..."
+- NUNCA use emojis, emoticons ou simbolos decorativos nas respostas.
+- Use Portuguese (pt-BR).
+
+## Perfil do Usuario
+${profileSection}
+
+## Limites (NUNCA violar)
+${boundaries}
+
+## Preferencias
+${preferences}
+
+## Perfil de Saude
+${healthLines.length > 0 ? healthLines.join('\n') : 'Nenhuma informacao de saude cadastrada.'}
+IMPORTANTE: Considere condicoes cronicas, medicamentos e suplementos ao recomendar exercicios, nutricao e mudancas de estilo de vida.
+Hipertensao requer cuidado com exercicios de alta intensidade, sodio excessivo e certos suplementos.
+Sempre recomende consultar um profissional de saude para orientacao especifica.
+
+## Humor Atual
+${mood}
+
+## Dados Recentes (7 dias)
+${dataLines.length > 0 ? dataLines.join('\n') : 'Sem dados recentes.'}
+
+## Metas Ativas
+${goals}
+
+## Restricao de Escopo (OBRIGATORIO)
+Responda APENAS sobre: saude, fitness, exercicios, nutricao, dieta, hidratacao, sono, bem-estar mental, humor, condicoes medicas do usuario (informativo), suplementos, vitaminas, medicamentos (informativo), controle de peso, composicao corporal, habitos saudaveis, acompanhamento de progresso e metas.
+Se perguntarem sobre qualquer outro assunto, responda: "Desculpe ${userName}, so posso ajudar com assuntos relacionados a saude, bem-estar, nutricao e fitness. Como posso te ajudar nessas areas?"
+
+## Diretrizes
+- Respeite os limites e preferencias de ${userName}
+- Foco em encorajamento e reforco positivo
+- Nunca faca diagnosticos medicos
+- Respostas concisas e uteis
+- Se receber imagem de comida, identifique e estime calorias
+- Celebre conquistas e progresso`;
+  }
+
   async function send() {
     if ((!input.trim() && !imageFile) || sending) return;
     setSending(true);
@@ -80,14 +207,7 @@ export default function ChatPage() {
     const { data: um } = await supabase.from('chat_messages').insert({ session_id: sid, user_id: userId, role: 'user', content: txt || 'Imagem enviada' }).select().single();
     if (um) setMessages(p => [...p, um]);
 
-    const [pr, br, mr] = await Promise.all([
-      supabase.from('user_profiles').select('display_name, objective').eq('id', userId).single(),
-      supabase.from('user_boundaries').select('item').eq('user_id', userId).eq('is_active', true),
-      supabase.from('mood_logs').select('mood').eq('user_id', userId).eq('logged_date', new Date().toISOString().split('T')[0]).maybeSingle(),
-    ]);
-
-    const obl: Record<string,string> = { lose_weight:'perder peso', gain_muscle:'ganhar massa', improve_health:'melhorar saude', maintain:'manter forma' };
-    const sys = `Voce e o FitTracker AI. Amigavel, empatico. USUARIO: ${pr.data?.display_name||'Usuario'} | Objetivo: ${obl[pr.data?.objective||'']||'melhorar saude'}. NUNCA SUGIRA: ${(br.data||[]).map((b:{item:string})=>b.item).join(', ')||'nada'}. HUMOR: ${mr.data?.mood||'?'}/5. Responda em PT-BR, conciso, sem emojis. Se receber imagem de comida, identifique e estime calorias.`;
+    const sys = await buildSystemPrompt(userId);
 
     const hist = messages.slice(-20).map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
     const parts: Array<Record<string, unknown>> = [];
