@@ -97,14 +97,32 @@ export default function ChatPage() {
     clearImage();
 
     let ai = '';
-    try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system_instruction: { parts: [{ text: sys }] }, contents: hist }),
-      });
-      const d = await r.json();
-      ai = d.candidates?.[0]?.content?.parts?.[0]?.text || 'Nao consegui responder.';
-    } catch { ai = 'Erro ao responder. Tente novamente.'; }
+    const geminiBody = JSON.stringify({ system_instruction: { parts: [{ text: sys }] }, contents: hist });
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const r = await fetch(geminiUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: geminiBody,
+          signal: AbortSignal.timeout(30000),
+        });
+        const d = await r.json();
+        if (d.candidates?.[0]?.content?.parts?.[0]?.text) {
+          ai = d.candidates[0].content.parts[0].text;
+          break;
+        }
+        if (d.error?.message) {
+          ai = `Desculpe, ocorreu um erro: ${d.error.message}`;
+          break;
+        }
+        if (attempt === 0) continue;
+        ai = 'Desculpe, nao consegui processar sua mensagem. Tente enviar novamente.';
+      } catch {
+        if (attempt === 0) continue;
+        ai = 'Desculpe, a conexao com a AI falhou. Tente novamente em alguns segundos.';
+      }
+    }
 
     const { data: am } = await supabase.from('chat_messages').insert({ session_id: sid, user_id: userId, role: 'assistant', content: ai }).select().single();
     if (am) setMessages(p => [...p, am]);
