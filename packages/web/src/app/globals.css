@@ -9,6 +9,21 @@
     --border: 226 232 240;
     --ring: 43 138 255;
     --radius: 0.5rem;
+    --card: 255 255 255;
+    --card-foreground: 23 23 23;
+    --muted: 241 245 249;
+    --muted-foreground: 100 116 139;
+  }
+
+  .dark {
+    --background: 15 23 42;
+    --foreground: 226 232 240;
+    --border: 51 65 85;
+    --ring: 59 130 246;
+    --card: 30 41 59;
+    --card-foreground: 226 232 240;
+    --muted: 30 41 59;
+    --muted-foreground: 148 163 184;
   }
 
   body {

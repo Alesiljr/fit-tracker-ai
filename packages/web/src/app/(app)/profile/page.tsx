@@ -137,24 +137,24 @@ export default function ProfilePage() {
           {editing ? (
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="text-sm text-neutral-600">Nome</label>
+                <label className="text-sm text-neutral-600 dark:text-slate-400">Nome</label>
                 <Input name="displayName" defaultValue={String(profile.display_name || '')} />
               </div>
               <div>
-                <label className="text-sm text-neutral-600">Data de Nascimento</label>
+                <label className="text-sm text-neutral-600 dark:text-slate-400">Data de Nascimento</label>
                 <Input name="dateOfBirth" type="date" defaultValue={String(profile.date_of_birth || '')} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm text-neutral-600">Gênero</label>
-                  <select name="gender" defaultValue={String(profile.gender || '')} className="w-full border rounded-md p-2 text-sm">
+                  <label className="text-sm text-neutral-600 dark:text-slate-400">Gênero</label>
+                  <select name="gender" defaultValue={String(profile.gender || '')} className="w-full border rounded-md p-2 text-sm bg-background text-foreground border-border">
                     <option value="">Selecionar</option>
                     {GENDERS.map(g => <option key={g} value={g}>{GENDER_LABELS[g]}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm text-neutral-600">Tipo Sanguíneo</label>
-                  <select name="bloodType" defaultValue={String(profile.blood_type || '')} className="w-full border rounded-md p-2 text-sm">
+                  <label className="text-sm text-neutral-600 dark:text-slate-400">Tipo Sanguíneo</label>
+                  <select name="bloodType" defaultValue={String(profile.blood_type || '')} className="w-full border rounded-md p-2 text-sm bg-background text-foreground border-border">
                     <option value="">Selecionar</option>
                     {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
@@ -162,17 +162,17 @@ export default function ProfilePage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm text-neutral-600">Altura (cm)</label>
+                  <label className="text-sm text-neutral-600 dark:text-slate-400">Altura (cm)</label>
                   <Input name="heightCm" type="number" defaultValue={String(profile.height_cm || '')} />
                 </div>
                 <div>
-                  <label className="text-sm text-neutral-600">Peso (kg)</label>
+                  <label className="text-sm text-neutral-600 dark:text-slate-400">Peso (kg)</label>
                   <Input name="initialWeight" type="number" step="0.1" defaultValue={String(profile.initial_weight || '')} />
                 </div>
               </div>
               <div>
-                <label className="text-sm text-neutral-600">Objetivo</label>
-                <select name="objective" defaultValue={String(profile.objective || 'improve_health')} className="w-full border rounded-md p-2 text-sm">
+                <label className="text-sm text-neutral-600 dark:text-slate-400">Objetivo</label>
+                <select name="objective" defaultValue={String(profile.objective || 'improve_health')} className="w-full border rounded-md p-2 text-sm bg-background text-foreground border-border">
                   {Object.entries(OBJECTIVE_LABELS).map(([key, label]) => (<option key={key} value={key}>{label}</option>))}
                 </select>
               </div>
@@ -184,17 +184,17 @@ export default function ProfilePage() {
             </form>
           ) : (
             <div className="space-y-3">
-              <div><span className="text-sm text-neutral-500">Nome</span><p className="font-medium">{String(profile.display_name || '—')}</p></div>
-              <div><span className="text-sm text-neutral-500">Idade</span><p className="font-medium">{profile.date_of_birth ? `${Math.floor((Date.now() - new Date(String(profile.date_of_birth)).getTime()) / 31557600000)} anos` : '—'}</p></div>
+              <div><span className="text-sm text-neutral-500 dark:text-slate-400">Nome</span><p className="font-medium">{String(profile.display_name || '—')}</p></div>
+              <div><span className="text-sm text-neutral-500 dark:text-slate-400">Idade</span><p className="font-medium">{profile.date_of_birth ? `${Math.floor((Date.now() - new Date(String(profile.date_of_birth)).getTime()) / 31557600000)} anos` : '—'}</p></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><span className="text-sm text-neutral-500">Gênero</span><p className="font-medium">{profile.gender ? GENDER_LABELS[String(profile.gender) as keyof typeof GENDER_LABELS] : '—'}</p></div>
-                <div><span className="text-sm text-neutral-500">Tipo Sanguíneo</span><p className="font-medium">{String(profile.blood_type || '—')}</p></div>
+                <div><span className="text-sm text-neutral-500 dark:text-slate-400">Gênero</span><p className="font-medium">{profile.gender ? GENDER_LABELS[String(profile.gender) as keyof typeof GENDER_LABELS] : '—'}</p></div>
+                <div><span className="text-sm text-neutral-500 dark:text-slate-400">Tipo Sanguíneo</span><p className="font-medium">{String(profile.blood_type || '—')}</p></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><span className="text-sm text-neutral-500">Altura</span><p className="font-medium">{profile.height_cm ? `${profile.height_cm} cm` : '—'}</p></div>
-                <div><span className="text-sm text-neutral-500">Peso</span><p className="font-medium">{profile.initial_weight ? `${profile.initial_weight} kg` : '—'}</p></div>
+                <div><span className="text-sm text-neutral-500 dark:text-slate-400">Altura</span><p className="font-medium">{profile.height_cm ? `${profile.height_cm} cm` : '—'}</p></div>
+                <div><span className="text-sm text-neutral-500 dark:text-slate-400">Peso</span><p className="font-medium">{profile.initial_weight ? `${profile.initial_weight} kg` : '—'}</p></div>
               </div>
-              <div><span className="text-sm text-neutral-500">Objetivo</span><p className="font-medium">{OBJECTIVE_LABELS[String(profile.objective) as UserObjective] || '—'}</p></div>
+              <div><span className="text-sm text-neutral-500 dark:text-slate-400">Objetivo</span><p className="font-medium">{OBJECTIVE_LABELS[String(profile.objective) as UserObjective] || '—'}</p></div>
               <Button onClick={() => setEditing(true)} className="mt-4">Editar perfil</Button>
             </div>
           )}
@@ -248,7 +248,7 @@ export default function ProfilePage() {
             {healthConditions.map((cond, idx) => (
               <div key={idx} className="flex gap-1 mb-2 items-center">
                 <Input placeholder="Condição" value={cond.name} className="text-xs" onChange={(e) => { const c = [...healthConditions]; c[idx] = { ...c[idx], name: e.target.value }; setHealthConditions(c); }} />
-                <select value={cond.severity || ''} className="border rounded-md p-2 text-xs w-24" onChange={(e) => { const c = [...healthConditions]; c[idx] = { ...c[idx], severity: (e.target.value || undefined) as HealthCondition['severity'] }; setHealthConditions(c); }}>
+                <select value={cond.severity || ''} className="border rounded-md p-2 text-xs w-24 bg-background text-foreground border-border" onChange={(e) => { const c = [...healthConditions]; c[idx] = { ...c[idx], severity: (e.target.value || undefined) as HealthCondition['severity'] }; setHealthConditions(c); }}>
                   <option value="">Grau</option>
                   <option value="mild">Leve</option>
                   <option value="moderate">Moderado</option>
@@ -289,7 +289,7 @@ export default function ProfilePage() {
             <button onClick={() => setSupplements([...supplements, { name: '' }])} className="text-xs text-primary-500 hover:underline">+ Adicionar suplemento</button>
           </div>
 
-          <p className="text-xs text-neutral-400 p-2 bg-neutral-50 rounded-md">
+          <p className="text-xs text-neutral-400 dark:text-slate-500 p-2 bg-neutral-50 dark:bg-slate-800 rounded-md">
             ℹ️ Esses dados ajudam a AI a entender melhor sua saúde. São criptografados e você pode exportar/excluir a qualquer momento.
           </p>
 
