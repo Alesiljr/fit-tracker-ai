@@ -75,6 +75,7 @@ export default function ProfilePage() {
       const form = new FormData(e.target as HTMLFormElement);
       const updates = {
         displayName: form.get('displayName') as string,
+        dateOfBirth: (form.get('dateOfBirth') as string) || undefined,
         gender: (form.get('gender') as string) || undefined,
         bloodType: (form.get('bloodType') as string) || undefined,
         heightCm: Number(form.get('heightCm')) || undefined,
@@ -139,6 +140,10 @@ export default function ProfilePage() {
                 <label className="text-sm text-neutral-600">Nome</label>
                 <Input name="displayName" defaultValue={String(profile.display_name || '')} />
               </div>
+              <div>
+                <label className="text-sm text-neutral-600">Data de Nascimento</label>
+                <Input name="dateOfBirth" type="date" defaultValue={String(profile.date_of_birth || '')} />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm text-neutral-600">Gênero</label>
@@ -180,6 +185,7 @@ export default function ProfilePage() {
           ) : (
             <div className="space-y-3">
               <div><span className="text-sm text-neutral-500">Nome</span><p className="font-medium">{String(profile.display_name || '—')}</p></div>
+              <div><span className="text-sm text-neutral-500">Idade</span><p className="font-medium">{profile.date_of_birth ? `${Math.floor((Date.now() - new Date(String(profile.date_of_birth)).getTime()) / 31557600000)} anos` : '—'}</p></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><span className="text-sm text-neutral-500">Gênero</span><p className="font-medium">{profile.gender ? GENDER_LABELS[String(profile.gender) as keyof typeof GENDER_LABELS] : '—'}</p></div>
                 <div><span className="text-sm text-neutral-500">Tipo Sanguíneo</span><p className="font-medium">{String(profile.blood_type || '—')}</p></div>
