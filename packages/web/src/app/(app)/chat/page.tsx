@@ -168,8 +168,9 @@ Nunca diagnosticar. Recomendar profissional quando relevante. Respostas concisas
     const geminiBody = JSON.stringify({ system_instruction: { parts: [{ text: sys }] }, contents: hist });
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000 * attempt));
         const r = await fetch(geminiUrl, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: geminiBody,
@@ -181,13 +182,14 @@ Nunca diagnosticar. Recomendar profissional quando relevante. Respostas concisas
           break;
         }
         if (d.error?.message) {
-          ai = `Desculpe, ocorreu um erro: ${d.error.message}`;
+          if (attempt < 2 && (d.error.message.includes('high demand') || d.error.message.includes('rate') || d.error.code === 429)) continue;
+          ai = 'Desculpe, o servico esta temporariamente sobrecarregado. Tente novamente em alguns segundos.';
           break;
         }
-        if (attempt === 0) continue;
+        if (attempt < 2) continue;
         ai = 'Desculpe, nao consegui processar sua mensagem. Tente enviar novamente.';
       } catch {
-        if (attempt === 0) continue;
+        if (attempt < 2) continue;
         ai = 'Desculpe, a conexao com a AI falhou. Tente novamente em alguns segundos.';
       }
     }
