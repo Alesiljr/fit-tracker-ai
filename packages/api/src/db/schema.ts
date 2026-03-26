@@ -411,3 +411,25 @@ export const userGoals = pgTable('user_goals', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ============================================================
+// HEALTH EVENTS (Temporary medications, symptoms, pain)
+// ============================================================
+export const healthEvents = pgTable('health_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => userProfiles.id, { onDelete: 'cascade' }),
+  eventType: text('event_type').notNull(),
+  description: text('description').notNull(),
+  details: jsonb('details').default({}),
+  bodyArea: text('body_area'),
+  severity: text('severity'),
+  startedAt: date('started_at').notNull(),
+  expiresAt: date('expires_at'),
+  isActive: boolean('is_active').notNull().default(true),
+  recurrenceCount: integer('recurrence_count').notNull().default(1),
+  lastOccurrence: date('last_occurrence'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

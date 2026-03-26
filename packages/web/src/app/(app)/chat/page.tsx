@@ -71,7 +71,9 @@ export default function ChatPage() {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 
     // Parallel: profile + health (static) and dynamic data
-    const [profileRes, healthRes, boundariesRes, prefsRes, goalsRes, moodRes, weightsRes, exercisesRes, waterRes, sleepRes, stepsRes] = await Promise.all([
+    const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+
+    const [profileRes, healthRes, boundariesRes, prefsRes, goalsRes, moodRes, weightsRes, exercisesRes, waterRes, sleepRes, stepsRes, activeEventsRes, recentEventsRes] = await Promise.all([
       supabase.from('user_profiles').select('display_name,date_of_birth,gender,height_cm,initial_weight,blood_type,objective').eq('id', userId).single(),
       supabase.from('user_health_info').select('health_conditions,allergies,intolerances,medications,supplements').eq('user_id', userId).maybeSingle(),
       supabase.from('user_boundaries').select('item,category,boundary_type').eq('user_id', userId).eq('is_active', true),
@@ -83,6 +85,8 @@ export default function ChatPage() {
       supabase.from('water_logs').select('logged_date,glasses').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }).limit(3),
       supabase.from('sleep_logs').select('logged_date,duration_min,quality').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }).limit(3),
       supabase.from('step_logs').select('logged_date,steps').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }).limit(3),
+      supabase.from('health_events').select('event_type,description,details,body_area,severity,expires_at').eq('user_id', userId).eq('is_active', true),
+      supabase.from('health_events').select('description,event_type,recurrence_count,last_occurrence').eq('user_id', userId).gte('last_occurrence', monthAgo).order('last_occurrence', { ascending: false }).limit(10),
     ]);
 
     const p = profileRes.data;
@@ -122,6 +126,21 @@ export default function ChatPage() {
     if (sleepRes.data?.length) recent.push(`Sono: ${sleepRes.data.map((s: any) => `${s.logged_date}=${s.duration_min||'?'}min q${s.quality}`).join(', ')}`);
     if (stepsRes.data?.length) recent.push(`Passos: ${stepsRes.data.map((s: any) => `${s.logged_date}=${s.steps}`).join(', ')}`);
 
+    // Active health events
+    const activeEvents = (activeEventsRes.data || []).map((e: any) => {
+      const parts = [`${e.event_type}:${e.description}`];
+      if (e.severity) parts.push(e.severity);
+      if (e.body_area) parts.push(e.body_area);
+      if (e.expires_at) parts.push(`ate ${e.expires_at}`);
+      const det = e.details as Record<string, string> | null;
+      if (det?.frequency) parts.push(det.frequency);
+      return parts.join(' ');
+    }).join(' | ');
+
+    // Recurrence history (last 30 days)
+    const recurrent = (recentEventsRes.data || []).filter((e: any) => e.recurrence_count >= 2)
+      .map((e: any) => `${e.description} ${e.recurrence_count}x`).join(', ');
+
     return `FitTracker AI — assistente de saude pessoal. PT-BR. Sem emojis.
 REGRA: Chame SEMPRE pelo nome "${name}". Nunca use "voce". Ex: "${name}, sua TMB e..."
 PERFIL: ${profile.join(' | ')} | Obj: ${obj[p?.objective || ''] || 'melhorar saude'}
@@ -131,8 +150,11 @@ ${prefs ? 'PREFERENCIAS: ' + prefs : ''}
 ${goals ? 'METAS: ' + goals : ''}
 HUMOR: ${moodRes.data?.mood || '?'}/5
 ${recent.length ? 'DADOS 7D: ' + recent.join(' | ') : ''}
+${activeEvents ? 'EVENTOS ATIVOS: ' + activeEvents : ''}
+${recurrent ? 'RECORRENCIAS 30D: ' + recurrent + ' — Se 3+x alertar para procurar especialista.' : ''}
 ESCOPO: So responder sobre saude/fitness/nutricao/sono/bem-estar/exercicio/suplementos/metas. Fora disso: "Desculpe ${name}, so posso ajudar com saude e fitness."
 ${hp.some(l => l.toLowerCase().includes('hipertens')) ? 'ATENCAO: Hipertensao — cuidado com exercicios intensos, sodio e suplementos que interfiram.' : ''}
+MEDICAMENTOS: Quando ${name} relatar dor, sintoma ou desconforto, pode sugerir medicamentos de VENDA LIVRE (sem receita) vendidos em farmacias brasileiras como opcao informativa. OBRIGATORIO: antes de sugerir, cruzar com condicoes de saude, medicamentos fixos, alergias e intolerancias de ${name}. Se houver contraindicacao, NAO sugerir e explicar o motivo. Sempre recomendar confirmar com farmaceutico ou medico. Ex: hipertenso — preferir paracetamol em vez de ibuprofeno. Alergico a dipirona — nunca sugerir dipirona.
 Nunca diagnosticar. Recomendar profissional quando relevante. Respostas concisas. Imagem de comida = identificar e estimar calorias.`;
   }
 
@@ -197,8 +219,103 @@ Nunca diagnosticar. Recomendar profissional quando relevante. Respostas concisas
     const { data: am } = await supabase.from('chat_messages').insert({ session_id: sid, user_id: userId, role: 'assistant', content: ai }).select().single();
     if (am) setMessages(p => [...p, am]);
     await supabase.from('chat_sessions').update({ message_count: messages.length + 2, updated_at: new Date().toISOString() }).eq('id', sid);
+
+    // Extract health events from user message (fire-and-forget)
+    extractHealthEvents(txt, userId).catch(() => {});
+
     loadSessions();
     setSending(false);
+  }
+
+  async function extractHealthEvents(userMsg: string, userId: string) {
+    if (!userMsg) return;
+    const lower = userMsg.toLowerCase();
+    const today = new Date().toISOString().split('T')[0];
+
+    const medKeywords = ['ibuprofeno','paracetamol','dipirona','dorflex','buscopan','tylenol','advil','nimesulida','diclofenaco','antialergico','loratadina','amoxicilina','azitromicina','omeprazol','antiinflamatorio','anti-inflamatorio','remedio','comprimido','tomei','vou tomar','estou tomando'];
+    const painKeywords = ['dor ','doendo','doeu','inflamacao','inchado','pontada','fisgada','caimbra','torcao','torceu'];
+    const symptomKeywords = ['febre','nausea','tontura','enjoo','mal estar','cansaco','insonia','gripe','resfriado','alergia','coceira'];
+    const bodyAreas: Record<string, string> = { cabeca:'cabeca', costas:'costas', lombar:'lombar', joelho:'joelho', ombro:'ombro', pescoco:'pescoco', braco:'braco', perna:'perna', pe:'pe', mao:'mao', barriga:'abdomen', abdomen:'abdomen', peito:'peito', garganta:'garganta', ouvido:'ouvido', olho:'olho', dente:'dente', articulacao:'articulacao', junta:'articulacao', coluna:'coluna', quadril:'quadril', tornozelo:'tornozelo', punho:'punho', cotovelo:'cotovelo' };
+
+    let eventType: string | null = null;
+    let description = '';
+
+    // Detect medication
+    const foundMed = medKeywords.find(k => lower.includes(k));
+    if (foundMed) {
+      eventType = 'medication';
+      description = foundMed.charAt(0).toUpperCase() + foundMed.slice(1);
+      // Try to extract actual med name (first keyword that's a real name, not a verb)
+      const medNames = ['ibuprofeno','paracetamol','dipirona','dorflex','buscopan','tylenol','advil','nimesulida','diclofenaco','loratadina','amoxicilina','azitromicina','omeprazol'];
+      const realMed = medNames.find(m => lower.includes(m));
+      if (realMed) description = realMed.charAt(0).toUpperCase() + realMed.slice(1);
+    }
+
+    // Detect pain
+    if (!eventType) {
+      const foundPain = painKeywords.find(k => lower.includes(k));
+      if (foundPain) { eventType = 'pain'; description = 'Dor'; }
+    }
+
+    // Detect symptom
+    if (!eventType) {
+      const foundSymptom = symptomKeywords.find(k => lower.includes(k));
+      if (foundSymptom) { eventType = 'symptom'; description = foundSymptom.charAt(0).toUpperCase() + foundSymptom.slice(1); }
+    }
+
+    if (!eventType) return;
+
+    // Detect body area
+    let bodyArea: string | null = null;
+    for (const [keyword, area] of Object.entries(bodyAreas)) {
+      if (lower.includes(keyword)) { bodyArea = area; break; }
+    }
+    if (bodyArea && eventType === 'pain') description = `Dor ${bodyArea}`;
+
+    // Detect duration (e.g. "5 dias", "por 3 dias")
+    let expiresAt: string | null = null;
+    const durationMatch = lower.match(/(\d+)\s*dias?/);
+    if (durationMatch) {
+      const days = parseInt(durationMatch[1]);
+      const exp = new Date(Date.now() + days * 86400000);
+      expiresAt = exp.toISOString().split('T')[0];
+    }
+
+    // Detect frequency
+    let frequency: string | null = null;
+    const freqMatch = lower.match(/(\d+)\s*(?:em|\/)\s*(\d+)\s*(?:h|hora)/);
+    if (freqMatch) frequency = `${freqMatch[1]}/${freqMatch[2]}h`;
+
+    // Check for existing similar event (recurrence)
+    const { data: existing } = await supabase.from('health_events')
+      .select('id,recurrence_count')
+      .eq('user_id', userId)
+      .ilike('description', `%${description}%`)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (existing?.length && existing[0]) {
+      // Update recurrence
+      await supabase.from('health_events').update({
+        recurrence_count: (existing[0].recurrence_count || 1) + 1,
+        last_occurrence: today,
+        is_active: true,
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      }).eq('id', existing[0].id);
+    } else {
+      // Insert new event
+      await supabase.from('health_events').insert({
+        user_id: userId,
+        event_type: eventType,
+        description,
+        details: { frequency, original_message: userMsg.substring(0, 200) },
+        body_area: bodyArea,
+        started_at: today,
+        expires_at: expiresAt,
+        last_occurrence: today,
+      });
+    }
   }
 
   const isHome = !sessionId && messages.length === 0;
