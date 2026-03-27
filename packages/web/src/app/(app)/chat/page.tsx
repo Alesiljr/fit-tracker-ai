@@ -42,8 +42,8 @@ export default function ChatPage() {
   async function openSession(sid: string) {
     setSessionId(sid);
     setSidebarOpen(false);
-    const { data } = await supabase.from('chat_messages').select('*').eq('session_id', sid).order('created_at', { ascending: true });
-    if (data) setMessages(data);
+    const { data } = await supabase.from('chat_messages').select('*').eq('session_id', sid).order('created_at', { ascending: false }).limit(50);
+    if (data) setMessages(data.reverse());
   }
 
   function newChat() { setSessionId(null); setMessages([]); setSidebarOpen(false); }
