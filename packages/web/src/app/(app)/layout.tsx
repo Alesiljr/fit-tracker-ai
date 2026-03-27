@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Home, ClipboardPen, MessageCircle, BarChart3, User } from 'lucide-react';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: Home },
@@ -35,7 +36,7 @@ export default function AppLayout({
           <LogoutButton />
         </div>
       </header>
-      <main className="pb-20 animate-fade-in">{children}</main>
+      <main className="pb-20 animate-fade-in"><ErrorBoundary>{children}</ErrorBoundary></main>
       <nav className="fixed bottom-0 left-0 right-0 glass border-t border-border/50 px-4 py-2 z-50">
         <div className="flex justify-around max-w-md mx-auto">
           {navItems.map(({ href, label, icon: Icon }) => {

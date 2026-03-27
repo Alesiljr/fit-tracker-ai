@@ -13,8 +13,6 @@ import { Plus, X, Menu, Send, Camera, Activity } from 'lucide-react';
 interface Msg { id: string; role: string; content: string; created_at: string; topic?: string; }
 interface Session { id: string; title: string; updated_at: string; message_count: number; }
 
-const GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-
 export default function ChatPage() {
   const { user: authUser } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -24,7 +22,6 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [topicFilter, setTopicFilter] = useState<MessageTopic | 'all'>('all');
-  const cachedPromptRef = useRef<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -45,12 +42,11 @@ export default function ChatPage() {
   async function openSession(sid: string) {
     setSessionId(sid);
     setSidebarOpen(false);
-    cachedPromptRef.current = null;
     const { data } = await supabase.from('chat_messages').select('*').eq('session_id', sid).order('created_at', { ascending: true });
     if (data) setMessages(data);
   }
 
-  function newChat() { setSessionId(null); setMessages([]); setSidebarOpen(false); cachedPromptRef.current = null; }
+  function newChat() { setSessionId(null); setMessages([]); setSidebarOpen(false); }
 
   async function deleteSession(sid: string) {
     await supabase.from('chat_messages').delete().eq('session_id', sid);
@@ -65,108 +61,6 @@ export default function ChatPage() {
     const r = new FileReader(); r.onload = () => setImagePreview(r.result as string); r.readAsDataURL(f);
   }
   function clearImage() { setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }
-
-  async function buildSystemPrompt(userId: string): Promise<string> {
-    const today = new Date().toISOString().split('T')[0];
-    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-
-    // Parallel: profile + health (static) and dynamic data
-    const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-
-    const [profileRes, healthRes, boundariesRes, prefsRes, goalsRes, moodRes, weightsRes, exercisesRes, waterRes, sleepRes, stepsRes, activeEventsRes, recentEventsRes] = await Promise.all([
-      supabase.from('user_profiles').select('display_name,date_of_birth,gender,height_cm,initial_weight,blood_type,objective').eq('id', userId).single(),
-      supabase.from('user_health_info').select('health_conditions,allergies,intolerances,medications,supplements').eq('user_id', userId).maybeSingle(),
-      supabase.from('user_boundaries').select('item,category,boundary_type').eq('user_id', userId).eq('is_active', true),
-      supabase.from('user_preferences').select('item,category').eq('user_id', userId).eq('is_active', true),
-      supabase.from('user_goals').select('title,target_value,unit,direction').eq('user_id', userId).eq('status', 'active'),
-      supabase.from('mood_logs').select('mood').eq('user_id', userId).eq('logged_date', today).maybeSingle(),
-      supabase.from('weight_logs').select('logged_date,weight_kg').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }).limit(3),
-      supabase.from('exercise_logs').select('logged_date,raw_input,total_duration_min').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }).limit(3),
-      supabase.from('water_logs').select('logged_date,glasses').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }).limit(3),
-      supabase.from('sleep_logs').select('logged_date,duration_min,quality').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }).limit(3),
-      supabase.from('step_logs').select('logged_date,steps').eq('user_id', userId).gte('logged_date', weekAgo).order('logged_date', { ascending: false }).limit(3),
-      supabase.from('health_events').select('event_type,description,details,body_area,severity,expires_at').eq('user_id', userId).eq('is_active', true),
-      supabase.from('health_events').select('description,event_type,recurrence_count,last_occurrence').eq('user_id', userId).gte('last_occurrence', monthAgo).order('last_occurrence', { ascending: false }).limit(10),
-    ]);
-
-    const p = profileRes.data;
-    const h = healthRes.data;
-    const name = p?.display_name || 'Usuario';
-    const obj: Record<string,string> = { lose_weight:'perder peso', gain_muscle:'ganhar massa', improve_health:'melhorar saude', maintain:'manter forma' };
-
-    // Build compact profile line
-    const profile: string[] = [name];
-    if (p?.date_of_birth) profile.push(`${Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31557600000)}a`);
-    if (p?.gender) profile.push(p.gender);
-    if (p?.height_cm) profile.push(`${p.height_cm}cm`);
-    if (p?.initial_weight) profile.push(`${p.initial_weight}kg`);
-    if (p?.blood_type) profile.push(p.blood_type);
-
-    // Compact health
-    const hp: string[] = [];
-    const conds = (h?.health_conditions as Array<{name:string;severity?:string}> || []);
-    if (conds.length) hp.push(`Condicoes: ${conds.map(c => `${c.name}${c.severity ? `(${c.severity})` : ''}`).join(', ')}`);
-    if (h?.allergies?.length) hp.push(`Alergias: ${h.allergies.join(', ')}`);
-    if (h?.intolerances?.length) hp.push(`Intolerancias: ${h.intolerances.join(', ')}`);
-    const meds = (h?.medications as Array<{name:string;dosage?:string;frequency?:string}> || []);
-    if (meds.length) hp.push(`Meds: ${meds.map(m => `${m.name}${m.dosage ? ' '+m.dosage : ''}${m.frequency ? ' '+m.frequency : ''}`).join(', ')}`);
-    const supps = (h?.supplements as Array<{name:string;dosage?:string;frequency?:string}> || []);
-    if (supps.length) hp.push(`Suplem: ${supps.map(s => `${s.name}${s.frequency ? ' '+s.frequency : ''}`).join(', ')}`);
-
-    // Compact boundaries/prefs
-    const bounds = (boundariesRes.data || []).map((b: any) => b.item).join(', ');
-    const prefs = (prefsRes.data || []).map((p: any) => p.item).join(', ');
-    const goals = (goalsRes.data || []).map((g: any) => `${g.title}:${g.target_value}${g.unit}`).join(', ');
-
-    // Compact recent data (last 3 entries max)
-    const recent: string[] = [];
-    if (weightsRes.data?.length) recent.push(`Peso: ${weightsRes.data.map((w: any) => `${w.logged_date}=${w.weight_kg}kg`).join(', ')}`);
-    if (exercisesRes.data?.length) recent.push(`Exerc: ${exercisesRes.data.map((e: any) => `${e.logged_date}=${e.total_duration_min||'?'}min`).join(', ')}`);
-    if (waterRes.data?.length) recent.push(`Agua: ${waterRes.data.map((w: any) => `${w.logged_date}=${w.glasses}copos`).join(', ')}`);
-    if (sleepRes.data?.length) recent.push(`Sono: ${sleepRes.data.map((s: any) => `${s.logged_date}=${s.duration_min||'?'}min q${s.quality}`).join(', ')}`);
-    if (stepsRes.data?.length) recent.push(`Passos: ${stepsRes.data.map((s: any) => `${s.logged_date}=${s.steps}`).join(', ')}`);
-
-    // Active health events
-    const activeEvents = (activeEventsRes.data || []).map((e: any) => {
-      const parts = [`${e.event_type}:${e.description}`];
-      if (e.severity) parts.push(e.severity);
-      if (e.body_area) parts.push(e.body_area);
-      if (e.expires_at) parts.push(`ate ${e.expires_at}`);
-      const det = e.details as Record<string, string> | null;
-      if (det?.frequency) parts.push(det.frequency);
-      return parts.join(' ');
-    }).join(' | ');
-
-    // Recurrence history (last 30 days)
-    const recurrent = (recentEventsRes.data || []).filter((e: any) => e.recurrence_count >= 2)
-      .map((e: any) => `${e.description} ${e.recurrence_count}x`).join(', ');
-
-    return `FitTracker AI — assistente de saude pessoal. PT-BR. Sem emojis.
-REGRA: Chame SEMPRE pelo nome "${name}". Nunca use "voce". Ex: "${name}, sua TMB e..."
-PERFIL: ${profile.join(' | ')} | Obj: ${obj[p?.objective || ''] || 'melhorar saude'}
-${hp.length ? 'SAUDE: ' + hp.join(' | ') : ''}
-${bounds ? 'NUNCA SUGIRA: ' + bounds : ''}
-${prefs ? 'PREFERENCIAS: ' + prefs : ''}
-${goals ? 'METAS: ' + goals : ''}
-HUMOR: ${moodRes.data?.mood || '?'}/5
-${recent.length ? 'DADOS 7D: ' + recent.join(' | ') : ''}
-${activeEvents ? 'EVENTOS ATIVOS: ' + activeEvents : ''}
-${recurrent ? 'RECORRENCIAS 30D: ' + recurrent + ' — Se 3+x alertar para procurar especialista.' : ''}
-ESCOPO: So responder sobre saude/fitness/nutricao/sono/bem-estar/exercicio/suplementos/metas. Fora disso: "Desculpe ${name}, so posso ajudar com saude e fitness."
-${hp.some(l => l.toLowerCase().includes('hipertens')) ? 'ATENCAO: Hipertensao — cuidado com exercicios intensos, sodio e suplementos que interfiram.' : ''}
-MEDICAMENTOS: Quando ${name} relatar dor, sintoma ou desconforto, pode sugerir medicamentos de VENDA LIVRE (sem receita) vendidos em farmacias brasileiras como opcao informativa. OBRIGATORIO: antes de sugerir, cruzar com condicoes de saude, medicamentos fixos, alergias e intolerancias de ${name}. Se houver contraindicacao, NAO sugerir e explicar o motivo. Sempre recomendar confirmar com farmaceutico ou medico. Ex: hipertenso — preferir paracetamol em vez de ibuprofeno. Alergico a dipirona — nunca sugerir dipirona.
-Nunca diagnosticar. Recomendar profissional quando relevante. Respostas concisas.
-CALORIAS — REGRAS OBRIGATORIAS:
-1. Use a Tabela TACO (Tabela Brasileira de Composicao de Alimentos) como referencia principal. Se nao encontrar na TACO, use USDA.
-2. SEMPRE calcule por peso/volume: identifique a porcao em gramas, aplique kcal/100g da tabela, multiplique. Mostre a conta.
-3. Formato: "[alimento] ([peso]g): [kcal/100g] x [peso/100] = [resultado] kcal"
-4. NUNCA mude o valor de um alimento ja calculado na mesma conversa. Se o usuario nao corrigiu a porcao, o valor permanece igual.
-5. Para somas, liste cada item com o valor EXATO ja calculado e some. Confira a aritmetica.
-6. Porcoes de referencia brasileiras: 1 colher de sopa = 25g, 1 colher de cha = 5g, 1 copo = 250ml, 1 prato fundo sopa = 300-400ml, ovo medio = 50g, banana media = 100g, maca media = 130g.
-7. Para itens industrializados (Polenguinho, iogurte marca X), use o valor da embalagem padrao.
-8. Quando o usuario der medida vaga (um pouco, umas), pergunte a quantidade antes de estimar.
-9. Imagem de comida = identificar alimentos, estimar porcao em gramas, calcular com tabela.`;
-  }
 
   async function send() {
     if ((!input.trim() && !imageFile) || sending) return;
@@ -184,46 +78,33 @@ CALORIAS — REGRAS OBRIGATORIAS:
     const { data: um } = await supabase.from('chat_messages').insert({ session_id: sid, user_id: userId, role: 'user', content: txt || 'Imagem enviada' }).select().single();
     if (um) setMessages(p => [...p, um]);
 
-    if (!cachedPromptRef.current) {
-      cachedPromptRef.current = await buildSystemPrompt(userId);
-    }
-    const sys = cachedPromptRef.current;
+    // Build history (last 20 messages)
+    const history = messages.slice(-20).map(m => ({ role: m.role, content: m.content }));
 
-    const hist = messages.slice(-20).map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
-    const parts: Array<Record<string, unknown>> = [];
-    if (txt) parts.push({ text: txt });
-    if (imageFile && imagePreview) parts.push({ inline_data: { mime_type: imageFile.type, data: imagePreview.split(',')[1] } });
-    hist.push({ role: 'user', parts: parts as Array<{text:string}> });
+    // Prepare image data if present
+    let imageData: { mimeType: string; base64: string } | undefined;
+    if (imageFile && imagePreview) {
+      imageData = { mimeType: imageFile.type, base64: imagePreview.split(',')[1] };
+    }
     clearImage();
 
+    // Call server-side API route (Gemini key stays on server)
     let ai = '';
-    const geminiBody = JSON.stringify({ system_instruction: { parts: [{ text: sys }] }, contents: hist });
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 2000 * attempt));
-        const r = await fetch(geminiUrl, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: geminiBody,
-          signal: AbortSignal.timeout(30000),
-        });
-        const d = await r.json();
-        if (d.candidates?.[0]?.content?.parts?.[0]?.text) {
-          ai = d.candidates[0].content.parts[0].text;
-          break;
-        }
-        if (d.error?.message) {
-          if (attempt < 2 && (d.error.message.includes('high demand') || d.error.message.includes('rate') || d.error.code === 429)) continue;
-          ai = 'Desculpe, o servico esta temporariamente sobrecarregado. Tente novamente em alguns segundos.';
-          break;
-        }
-        if (attempt < 2) continue;
-        ai = 'Desculpe, nao consegui processar sua mensagem. Tente enviar novamente.';
-      } catch {
-        if (attempt < 2) continue;
-        ai = 'Desculpe, a conexao com a AI falhou. Tente novamente em alguns segundos.';
-      }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ message: txt, history, imageData }),
+        signal: AbortSignal.timeout(45000),
+      });
+      const data = await res.json();
+      ai = data.response || data.error || 'Desculpe, nao consegui processar sua mensagem.';
+    } catch {
+      ai = 'Desculpe, a conexao falhou. Tente novamente em alguns segundos.';
     }
 
     const { data: am } = await supabase.from('chat_messages').insert({ session_id: sid, user_id: userId, role: 'assistant', content: ai }).select().single();
@@ -250,24 +131,20 @@ CALORIAS — REGRAS OBRIGATORIAS:
     let eventType: string | null = null;
     let description = '';
 
-    // Detect medication
     const foundMed = medKeywords.find(k => lower.includes(k));
     if (foundMed) {
       eventType = 'medication';
       description = foundMed.charAt(0).toUpperCase() + foundMed.slice(1);
-      // Try to extract actual med name (first keyword that's a real name, not a verb)
       const medNames = ['ibuprofeno','paracetamol','dipirona','dorflex','buscopan','tylenol','advil','nimesulida','diclofenaco','loratadina','amoxicilina','azitromicina','omeprazol'];
       const realMed = medNames.find(m => lower.includes(m));
       if (realMed) description = realMed.charAt(0).toUpperCase() + realMed.slice(1);
     }
 
-    // Detect pain
     if (!eventType) {
       const foundPain = painKeywords.find(k => lower.includes(k));
       if (foundPain) { eventType = 'pain'; description = 'Dor'; }
     }
 
-    // Detect symptom
     if (!eventType) {
       const foundSymptom = symptomKeywords.find(k => lower.includes(k));
       if (foundSymptom) { eventType = 'symptom'; description = foundSymptom.charAt(0).toUpperCase() + foundSymptom.slice(1); }
@@ -275,28 +152,23 @@ CALORIAS — REGRAS OBRIGATORIAS:
 
     if (!eventType) return;
 
-    // Detect body area
     let bodyArea: string | null = null;
     for (const [keyword, area] of Object.entries(bodyAreas)) {
       if (lower.includes(keyword)) { bodyArea = area; break; }
     }
     if (bodyArea && eventType === 'pain') description = `Dor ${bodyArea}`;
 
-    // Detect duration (e.g. "5 dias", "por 3 dias")
     let expiresAt: string | null = null;
     const durationMatch = lower.match(/(\d+)\s*dias?/);
     if (durationMatch) {
       const days = parseInt(durationMatch[1]);
-      const exp = new Date(Date.now() + days * 86400000);
-      expiresAt = exp.toISOString().split('T')[0];
+      expiresAt = new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
     }
 
-    // Detect frequency
     let frequency: string | null = null;
     const freqMatch = lower.match(/(\d+)\s*(?:em|\/)\s*(\d+)\s*(?:h|hora)/);
     if (freqMatch) frequency = `${freqMatch[1]}/${freqMatch[2]}h`;
 
-    // Check for existing similar event (recurrence)
     const { data: existing } = await supabase.from('health_events')
       .select('id,recurrence_count')
       .eq('user_id', userId)
@@ -305,7 +177,6 @@ CALORIAS — REGRAS OBRIGATORIAS:
       .limit(1);
 
     if (existing?.length && existing[0]) {
-      // Update recurrence
       await supabase.from('health_events').update({
         recurrence_count: (existing[0].recurrence_count || 1) + 1,
         last_occurrence: today,
@@ -314,7 +185,6 @@ CALORIAS — REGRAS OBRIGATORIAS:
         updated_at: new Date().toISOString(),
       }).eq('id', existing[0].id);
     } else {
-      // Insert new event
       await supabase.from('health_events').insert({
         user_id: userId,
         event_type: eventType,
