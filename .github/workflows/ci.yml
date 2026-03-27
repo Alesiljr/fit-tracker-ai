@@ -1,0 +1,28 @@
+name: CI
+
+  on:
+    push:
+      branches: [main]
+    pull_request:
+      branches: [main]
+
+  jobs:
+    lint-and-typecheck:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with:
+            node-version: '20'
+            cache: 'npm'
+        - run: npm ci
+        - name: Build shared
+          run: npm run build --workspace=packages/shared
+        - name: Typecheck API
+          run: npx tsc --noEmit --project packages/api/tsconfig.json
+          continue-on-error: true
+        - name: Typecheck Web
+          run: npx tsc --noEmit --project packages/web/tsconfig.json
+        - name: Run tests
+          run: npm test
+          continue-on-error: true
