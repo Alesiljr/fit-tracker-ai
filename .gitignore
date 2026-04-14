@@ -34,3 +34,9 @@ yarn-error.log*
 coverage/
 .vercel
 .env.vercel
+
+# AIOS framework runtime files
+.aios/logs/
+.aios/state/
+.aios/cache/
+.ai/

@@ -1,0 +1,15 @@
+project:
+  name: fit-tracker-ai
+  initialized: '2026-04-13'
+
+current:
+  epic: null
+  story: null
+  workflow: null
+
+stats:
+  totalStories: 0
+  completedStories: 0
+  inProgressStories: 0
+
+lastUpdated: '2026-04-13T00:00:00.000Z'

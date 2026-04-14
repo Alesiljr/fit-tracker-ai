@@ -1,0 +1,35 @@
+project:
+  name: fit-tracker-ai
+  type: brownfield
+  installedAt: '2026-04-13T00:00:00.000Z'
+  version: 1.0.0
+
+inheritsFrom: ../../.aios-core
+
+prd:
+  prdFile: docs/prd.md
+  prdSharded: true
+  prdShardedLocation: docs/prd
+  epicFilePattern: epic-{n}*.md
+
+architecture:
+  architectureFile: docs/architecture.md
+  architectureSharded: true
+  architectureShardedLocation: docs/architecture
+
+qa:
+  qaLocation: docs/qa
+
+devStoryLocation: docs/stories
+
+frameworkDocsLocation: docs/framework
+
+projectStatus:
+  enabled: true
+  statusFile: .aios/project-status.yaml
+
+decisionLogging:
+  enabled: true
+  location: .ai/
+  indexFile: decision-logs-index.md
+  format: adr
