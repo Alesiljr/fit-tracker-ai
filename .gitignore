@@ -40,3 +40,6 @@ coverage/
 .aios/state/
 .aios/cache/
 .ai/
+
+# Claude Code local config
+.claude/
